@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00a651;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#008a43;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="64" cy="64" r="60" fill="url(#grad)"/>
+  <!-- Shopping cart -->
+  <path d="M 30 50 L 40 50 L 45 80 L 95 80 L 100 50 L 50 50" stroke="white" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="50" cy="90" r="6" fill="white"/>
+  <circle cx="85" cy="90" r="6" fill="white"/>
+  <!-- AI sparkles -->
+  <circle cx="80" cy="35" r="4" fill="white"/>
+  <circle cx="90" cy="42" r="3" fill="white"/>
+  <circle cx="72" cy="40" r="3" fill="white"/>
+</svg>

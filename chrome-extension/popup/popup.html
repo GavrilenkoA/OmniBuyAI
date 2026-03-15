@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Perekrestok AI Assistant</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="chat-container">
+    <!-- Header -->
+    <header class="chat-header">
+      <div class="header-content">
+        <h1 class="header-title">🛒 Помощник Перекрёсток</h1>
+        <span class="status-indicator" title="Online"></span>
+      </div>
+    </header>
+
+    <!-- Messages Area -->
+    <div class="messages-container" id="messagesContainer">
+      <!-- Welcome Message -->
+      <div class="message message-agent">
+        <div class="message-avatar">🤖</div>
+        <div class="message-content">
+          <div class="message-bubble">
+            <p>Привет! Я ваш AI-помощник для покупок в Перекрёстке.</p>
+            <p>Я могу помочь вам:</p>
+            <ul>
+              <li>Найти товары по названию</li>
+              <li>Собрать корзину по рецепту</li>
+              <li>Подобрать продукты для завтрака, обеда или ужина</li>
+              <li>Добавить товары в корзину</li>
+            </ul>
+            <p>Что бы вы хотели купить сегодня?</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="input-container">
+      <div class="input-wrapper">
+        <input 
+          type="text" 
+          id="userInput" 
+          class="input-field"
+          placeholder="Введите запрос..."
+          autocomplete="off"
+        >
+        <button id="sendButton" class="send-button" title="Отправить">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22 2L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="quick-actions">
+        <button class="quick-action-btn" data-query="Собери мне завтрак">🌅 Завтрак</button>
+        <button class="quick-action-btn" data-query="Собери мне обед">🍲 Обед</button>
+        <button class="quick-action-btn" data-query="Собери мне ужин">🌙 Ужин</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Product Card Template -->
+  <template id="productCardTemplate">
+    <div class="product-card">
+      <img class="product-image" src="" alt="">
+      <div class="product-info">
+        <h4 class="product-name"></h4>
+        <p class="product-price"></p>
+        <button class="add-to-cart-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 20C9.55228 20 10 20.4477 10 21C10 21.5523 9.55228 22 9 22C8.44772 22 8 21.5523 8 21C8 20.4477 8.44772 20 9 20Z" fill="currentColor"/>
+            <path d="M20 20C20.5523 20 21 20.4477 21 21C21 21.5523 20.5523 22 20 22C19.4477 22 19 21.5523 19 21C19 20.4477 19.4477 20 20 20Z" fill="currentColor"/>
+            <path d="M1 1H5L7.68 14.39C7.84676 15.2233 8.27386 15.9874 8.90667 16.5839C9.53948 17.1804 10.3493 17.5817 11.22 17.73H19.41C20.2233 17.5973 20.9691 17.1903 21.5466 16.5642C22.1241 15.9381 22.5051 15.1234 22.64 14.23L23 12H6L5 7H2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          В корзину
+        </button>
+      </div>
+    </div>
+  </template>
+
+  <script src="popup.js"></script>
+</body>
+</html>
