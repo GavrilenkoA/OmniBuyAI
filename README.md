@@ -100,7 +100,7 @@ cp .env.example .env
 OPENAI_API_KEY=sk-proj-...
 
 # --- Models ---
-OPENAI_MODEL=gpt-4o-mini
+OPENAI_MODEL=gpt-5-nano
 EMBEDDING_MODEL=text-embedding-3-small
 ```
 
