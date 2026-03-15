@@ -1,4 +1,3 @@
-import json
 import os
 
 import pandas as pd
@@ -8,36 +7,35 @@ from .models import Product
 
 
 def load_products() -> list[Product]:
-    info_path = os.path.join(DATA_DIR, "info_product.csv")
-    cal_path = os.path.join(DATA_DIR, "calories.csv")
-    desc_path = os.path.join(DATA_DIR, "description.json")
+    path = os.path.join(DATA_DIR, "products.csv")
+    df = pd.read_csv(path, sep=";", encoding="utf-8-sig")
 
-    info_df = pd.read_csv(info_path)
-    cal_df = pd.read_csv(cal_path)
+    # Only in-stock products
+    df = df[df["in_stock"] == True].copy()
 
-    merged = info_df.merge(cal_df, on="id", how="left")
-    merged = merged.fillna(0)
-
-    with open(desc_path, "r", encoding="utf-8") as f:
-        descriptions = json.load(f)
-
-    desc_map = {item["id"]: item for item in descriptions}
+    df = df.fillna({"old_price": 0, "discount": "", "rating": 0, "review_count": 0,
+                     "slug": "", "description": "", "weight": "", "unit": "",
+                     "image_url": "", "brand": "", "category": ""})
 
     products = []
-    for _, row in merged.iterrows():
-        desc_info = desc_map.get(int(row["id"]), {})
+    for _, row in df.iterrows():
         products.append(
             Product(
-                id=int(row["id"]),
-                category=str(row["category"]),
-                name=str(row["name"]),
+                internal_id=int(row["internal_id"]),
+                title=str(row["title"]),
                 price=float(row["price"]),
-                calories=float(row.get("calories", 0)),
-                proteins=float(row.get("proteins", 0)),
-                fats=float(row.get("fats", 0)),
-                carbs=float(row.get("carbs", 0)),
-                description=desc_info.get("description", ""),
-                compound=desc_info.get("compound", ""),
+                old_price=float(row.get("old_price", 0)),
+                discount=str(row.get("discount", "")),
+                category=str(row["category"]),
+                in_stock=True,
+                rating=float(row.get("rating", 0)),
+                review_count=int(row.get("review_count", 0)),
+                slug=str(row.get("slug", "")),
+                description=str(row.get("description", "")),
+                weight=str(row.get("weight", "")),
+                unit=str(row.get("unit", "")),
+                image_url=str(row.get("image_url", "")),
+                brand=str(row.get("brand", "")),
             )
         )
 

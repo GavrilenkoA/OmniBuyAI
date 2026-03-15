@@ -2,46 +2,25 @@ from pydantic import BaseModel
 
 
 class Product(BaseModel):
-    id: int
-    category: str
-    name: str
+    internal_id: int
+    title: str
     price: float
-    calories: float = 0.0
-    proteins: float = 0.0
-    fats: float = 0.0
-    carbs: float = 0.0
+    old_price: float = 0.0
+    discount: str = ""
+    category: str = ""
+    in_stock: bool = True
+    rating: float = 0.0
+    review_count: int = 0
+    slug: str = ""
     description: str = ""
-    compound: str = ""
+    weight: str = ""
+    unit: str = ""
+    image_url: str = ""
+    brand: str = ""
 
 
 class CartItem(BaseModel):
-    id: int
-    name: str
+    internal_id: int
+    title: str
     quantity: int
     price: float
-
-
-class Meal(BaseModel):
-    meal_type: str  # breakfast / lunch / dinner
-    dishes: list[str]
-    product_ids: list[int]
-
-
-class DayPlan(BaseModel):
-    day: int
-    meals: list[Meal]
-
-
-class MealPlan(BaseModel):
-    days: list[DayPlan]
-
-
-class NutritionSummary(BaseModel):
-    total_calories: float
-    total_proteins: float
-    total_fats: float
-    total_carbs: float
-    per_person_per_day_calories: float
-    per_person_per_day_proteins: float
-    per_person_per_day_fats: float
-    per_person_per_day_carbs: float

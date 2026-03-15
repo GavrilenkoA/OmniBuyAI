@@ -1,23 +1,14 @@
-"""Product retrieval: BM25 full-text search + optional semantic reranking."""
+"""Product retrieval: BM25 full-text search with ranking by rating/reviews/discount."""
 
 import math
 import re
-from collections import Counter
 
-import numpy as np
-from openai import OpenAI
-from sklearn.metrics.pairwise import cosine_similarity
-
-from .config import OPENAI_API_KEY, EMBEDDING_MODEL
 from .models import Product
-
-_client = OpenAI(api_key=OPENAI_API_KEY)
 
 
 # ── Tokenization ──
 
 def _tokenize(text: str) -> list[str]:
-    """Lowercase + split into words, strip punctuation."""
     text = text.lower()
     text = re.sub(r"[^\w\s]", " ", text)
     return [w for w in text.split() if len(w) > 1]
@@ -74,7 +65,30 @@ _indexed_products: list[Product] = []
 
 
 def _product_text(p: Product) -> str:
-    return f"{p.category} {p.name} {p.description}"
+    return f"{p.category} {p.title} {p.slug}"
+
+
+def _quality_score(p: Product) -> float:
+    """Bonus score based on rating, reviews, and discount."""
+    score = 0.0
+
+    # Rating: 0-500 scale, high rating = good
+    if p.rating > 0:
+        score += (p.rating / 500) * 2.0
+
+    # Reviews: log scale bonus
+    if p.review_count > 0:
+        score += math.log1p(p.review_count) * 0.3
+
+    # Discount bonus
+    if p.discount:
+        try:
+            pct = abs(float(p.discount.replace("%", "").replace(",", ".")))
+            score += pct * 0.02
+        except ValueError:
+            pass
+
+    return score
 
 
 def _build_index(products: list[Product]):
@@ -89,43 +103,30 @@ def retrieve_products(
     products: list[Product],
     top_k: int = 20,
 ) -> list[Product]:
-    """BM25 full-text search over products."""
+    """BM25 search with quality-based reranking."""
     global _bm25, _indexed_products
     if _bm25 is None or _indexed_products is not products:
         _build_index(products)
 
-    scores = _bm25.score(query)
-    ranked = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)
+    bm25_scores = _bm25.score(query)
 
-    results = []
-    for idx, sc in ranked:
-        if sc > 0 and len(results) < top_k:
-            results.append(_indexed_products[idx])
+    # Combine BM25 relevance with quality score
+    combined = []
+    for idx, bm25_sc in enumerate(bm25_scores):
+        if bm25_sc > 0:
+            p = _indexed_products[idx]
+            quality = _quality_score(p)
+            # BM25 for relevance, quality as tiebreaker
+            final_score = bm25_sc + quality * 0.5
+            combined.append((idx, final_score))
 
-    # If BM25 found very little, return all products as fallback
+    combined.sort(key=lambda x: x[1], reverse=True)
+
+    results = [_indexed_products[idx] for idx, _ in combined[:top_k]]
+
+    # Fallback: if BM25 found very little, return top-rated products
     if len(results) < 3:
-        return products[:top_k]
+        fallback = sorted(products, key=lambda p: (p.rating, p.review_count), reverse=True)
+        return fallback[:top_k]
 
     return results
-
-
-def semantic_rerank(
-    query: str,
-    candidates: list[Product],
-    top_k: int = 5,
-) -> list[Product]:
-    """Rerank candidates using OpenAI embeddings. Use when choosing between similar products."""
-    if len(candidates) <= top_k:
-        return candidates
-
-    texts = [_product_text(p) for p in candidates]
-    response = _client.embeddings.create(input=[query] + texts, model=EMBEDDING_MODEL)
-    embeddings = np.array([e.embedding for e in response.data])
-
-    query_emb = embeddings[0:1]
-    doc_embs = embeddings[1:]
-
-    similarities = cosine_similarity(query_emb, doc_embs)[0]
-    top_indices = np.argsort(similarities)[-top_k:][::-1]
-
-    return [candidates[i] for i in top_indices]

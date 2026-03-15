@@ -5,12 +5,8 @@ description = "AI Grocery Planning Agent for Perekrestok"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "openai>=1.0",
-    "httpx",
-    "beautifulsoup4",
-    "pandas",
-    "numpy",
-    "scikit-learn",
+    "openai>=2.0",
+    "pandas>=2.0",
     "pydantic>=2.0",
-    "python-dotenv",
+    "python-dotenv>=1.0",
 ]

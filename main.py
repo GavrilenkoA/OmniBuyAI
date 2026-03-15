@@ -1,9 +1,9 @@
-import os
+import logging
 import sys
 
-from omnibuyai.agent import GroceryAgent
-from omnibuyai.scraper import generate_test_data
-from omnibuyai.config import DATA_DIR
+from omnibuyai import GroceryAgent
+
+logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 
 def print_results(result: dict):
@@ -25,51 +25,34 @@ def print_results(result: dict):
     print("🛒 КОРЗИНА")
     print("=" * 60)
 
-    for item in result["cart"]:
-        total = item["price"] * item["quantity"]
-        print(f"  [{item['id']:3d}] {item['name']} x{item['quantity']} — {total:.2f}₽")
+    # cart is {internal_id: quantity} — need product info for display
+    agent = GroceryAgent()
+    agent._ensure_loaded()
+    product_map = {p.internal_id: p for p in agent.products}
+
+    for pid, qty in result["cart"].items():
+        p = product_map.get(pid)
+        name = p.title if p else f"ID:{pid}"
+        price = p.price if p else 0
+        print(f"  [{pid}] {name} x{qty} — {price * qty:.2f}₽")
 
     print(f"\n  💰 ИТОГО: {result['total_price']:.2f}₽")
 
     print("\n" + "=" * 60)
-    print("⚖️  КБЖУ (на человека в день)")
+    print("📦 КОРЗИНА ДЛЯ API")
     print("=" * 60)
-    n = result["nutrition"]
-    print(f"  Калории:  {n['per_person_per_day_calories']:.0f} ккал")
-    print(f"  Белки:    {n['per_person_per_day_proteins']:.0f} г")
-    print(f"  Жиры:     {n['per_person_per_day_fats']:.0f} г")
-    print(f"  Углеводы: {n['per_person_per_day_carbs']:.0f} г")
-
-    balance = result["balance"]
-    if balance["balanced"]:
-        print("\n  ✅ Питание сбалансировано!")
-    else:
-        print("\n  ⚠️  Замечания:")
-        for issue in balance["issues"]:
-            print(f"    - {issue}")
-
-    print("\n" + "=" * 60)
-    print("📦 СПИСОК ID ДЛЯ КОРЗИНЫ API")
-    print("=" * 60)
-    cart_api = [{"id": item["id"], "quantity": item["quantity"]} for item in result["cart"]]
-    print(f"  {cart_api}")
+    print(f"  {result['cart']}")
     print()
 
 
 def main():
-    # Generate test data if not present
-    if not os.path.exists(os.path.join(DATA_DIR, "info_product.csv")):
-        print("📥 Генерация тестовых данных...")
-        generate_test_data()
-
-    # Get initial query
     if len(sys.argv) > 1:
         query = " ".join(sys.argv[1:])
     else:
         query = input("🔍 Введите запрос: ")
 
     if not query.strip():
-        print("Пустой запрос. Попробуйте: 'Собери продукты на 3 дня для 2 человек'")
+        print("Пустой запрос.")
         return
 
     print(f"\n🚀 Запрос: {query}\n")
@@ -78,7 +61,6 @@ def main():
 
     # Clarification loop
     conversation_history: list[dict] = []
-    params = None
 
     while True:
         result = agent.clarify(query, conversation_history or None)
@@ -87,7 +69,6 @@ def main():
             params = result["params"]
             break
 
-        # Need more info — ask the user
         question = result["question"]
         print(f"\n💬 {question}")
         conversation_history.append({"role": "user", "content": query})
@@ -95,14 +76,12 @@ def main():
 
         answer = input("👤 ")
         if not answer.strip():
-            print("Нет ответа, используем значения по умолчанию.")
             params = {"days": 3, "people": 2, "preferences": "сбалансированное питание"}
             break
 
         query = answer
         conversation_history.append({"role": "user", "content": answer})
 
-    # Execute
     result = agent.execute(params)
     print_results(result)
 
