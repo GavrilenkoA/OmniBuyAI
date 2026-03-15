@@ -9,31 +9,72 @@ from .retrieval import retrieve_products
 _client = OpenAI(api_key=OPENAI_API_KEY)
 
 
-def parse_request(user_query: str) -> dict:
-    """Extract structured parameters from user query."""
+def analyze_request(user_query: str, conversation_history: list[dict] | None = None) -> dict:
+    """Analyze user query: either extract params or ask clarifying questions.
+
+    Returns:
+        {"status": "ready", "params": {days, people, preferences, budget, ...}}
+        or
+        {"status": "need_info", "question": "уточняющий вопрос для пользователя"}
+    """
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "Ты — умный помощник для планирования покупок продуктов в супермаркете.\n"
+                "Пользователь описывает что ему нужно — это может быть что угодно:\n"
+                "- 'Собери продукты на неделю для семьи из 4 человек'\n"
+                "- 'Хочу приготовить борщ'\n"
+                "- 'Нужны продукты для похудения на 5 дней'\n"
+                "- 'Закупка для пикника на 10 человек'\n"
+                "- 'Что-нибудь на ужин, я один'\n\n"
+                "Твоя задача — понять запрос и определить, достаточно ли информации.\n\n"
+                "Если информации ДОСТАТОЧНО для составления списка продуктов, верни JSON:\n"
+                '{"status": "ready", "params": {"days": int, "people": int, '
+                '"preferences": "описание предпочтений/ограничений", '
+                '"budget": float|null, "context": "краткое описание задачи своими словами"}}\n\n'
+                "Если информации НЕДОСТАТОЧНО и ты не можешь разумно предположить — задай "
+                "ОДИН конкретный уточняющий вопрос. Верни JSON:\n"
+                '{"status": "need_info", "question": "вопрос"}\n\n'
+                "ПРАВИЛА:\n"
+                "- Не спрашивай лишнего. Если можно разумно предположить — предполагай.\n"
+                "- 'Хочу борщ' → достаточно: 1 день, 1 человек (или 4 порции), предпочтения='борщ'.\n"
+                "- 'Еда на неделю' → достаточно: 7 дней, 1 человек, сбалансированное.\n"
+                "- Спрашивай только если запрос действительно неясен: 'купи еды' — на сколько дней? на сколько человек?\n"
+                "- Если пользователь указал конкретные блюда — не нужны дни/люди, просто подбери ингредиенты.\n"
+                "- Учитывай ВСЮ историю диалога при анализе."
+            ),
+        },
+    ]
+
+    if conversation_history:
+        messages.extend(conversation_history)
+
+    messages.append({"role": "user", "content": user_query})
+
     response = _client.chat.completions.create(
         model=OPENAI_MODEL,
         response_format={"type": "json_object"},
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "Ты — помощник для планирования покупок продуктов. "
-                    "Извлеки из запроса пользователя параметры в JSON:\n"
-                    '{"days": int, "people": int, "preferences": str, "budget": float|null}\n'
-                    "preferences — любые пожелания по питанию (вегетарианское, сбалансированное, etc). "
-                    "Если параметр не указан, используй разумные значения по умолчанию: "
-                    "days=3, people=2, preferences='сбалансированное питание', budget=null."
-                ),
-            },
-            {"role": "user", "content": user_query},
-        ],
+        messages=messages,
     )
     return json.loads(response.choices[0].message.content)
 
 
 def generate_meal_plan(params: dict) -> list[dict]:
     """Generate a meal plan for the given parameters."""
+    context = params.get("context", "")
+    preferences = params.get("preferences", "сбалансированное питание")
+
+    prompt = (
+        f"Составь план питания на {params.get('days', 3)} дней "
+        f"для {params.get('people', 2)} человек.\n"
+        f"Предпочтения: {preferences}.\n"
+    )
+    if context:
+        prompt += f"Контекст запроса: {context}\n"
+    if params.get("budget"):
+        prompt += f"Бюджет: {params['budget']}₽.\n"
+
     response = _client.chat.completions.create(
         model=OPENAI_MODEL,
         response_format={"type": "json_object"},
@@ -46,16 +87,11 @@ def generate_meal_plan(params: dict) -> list[dict]:
                     '{"meal_plan": [{"day": 1, "meals": [{"meal_type": "breakfast", "dishes": ["Овсянка с ягодами", ...]}, '
                     '{"meal_type": "lunch", "dishes": [...]}, {"meal_type": "dinner", "dishes": [...]}]}, ...]}\n'
                     "Блюда должны быть простыми, из доступных в обычном супермаркете продуктов. "
-                    "Учитывай сбалансированность по БЖУ. Каждое блюдо — 1-3 слова, название рецепта."
+                    "Учитывай сбалансированность по БЖУ и предпочтения пользователя. "
+                    "Каждое блюдо — 1-3 слова, название рецепта."
                 ),
             },
-            {
-                "role": "user",
-                "content": (
-                    f"Составь план питания на {params['days']} дней для {params['people']} человек. "
-                    f"Предпочтения: {params.get('preferences', 'сбалансированное питание')}."
-                ),
-            },
+            {"role": "user", "content": prompt},
         ],
     )
     data = json.loads(response.choices[0].message.content)
@@ -68,7 +104,6 @@ def select_products_for_dishes(
     people: int,
 ) -> list[tuple[int, int]]:
     """For a list of dishes, retrieve and select matching products with quantities."""
-    # Retrieve relevant products for all dishes at once
     query = ", ".join(dishes)
     candidates = retrieve_products(query, products, top_k=30)
 
@@ -124,7 +159,6 @@ def adjust_for_nutrition(
         if pid in product_map
     )
 
-    # Get some additional candidates
     issue_query = " ".join(issues)
     extra_candidates = retrieve_products(issue_query, products, top_k=15)
     extra_text = "\n".join(

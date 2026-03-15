@@ -7,10 +7,6 @@ from omnibuyai.config import DATA_DIR
 
 
 def print_results(result: dict):
-    params = result["params"]
-    days = params.get("days", 3)
-    people = params.get("people", 2)
-
     print("\n" + "=" * 60)
     print("📋 ПЛАН ПИТАНИЯ")
     print("=" * 60)
@@ -66,19 +62,48 @@ def main():
         print("📥 Генерация тестовых данных...")
         generate_test_data()
 
-    # Get user query
+    # Get initial query
     if len(sys.argv) > 1:
         query = " ".join(sys.argv[1:])
     else:
-        query = input("🔍 Введите запрос (например: 'Собери продукты на 3 дня для 2 человек'): ")
+        query = input("🔍 Введите запрос: ")
 
     if not query.strip():
-        query = "Собери продукты на 3 дня для 2 человек, сбалансированное питание"
+        print("Пустой запрос. Попробуйте: 'Собери продукты на 3 дня для 2 человек'")
+        return
 
     print(f"\n🚀 Запрос: {query}\n")
 
     agent = GroceryAgent()
-    result = agent.run(query)
+
+    # Clarification loop
+    conversation_history: list[dict] = []
+    params = None
+
+    while True:
+        result = agent.clarify(query, conversation_history or None)
+
+        if result["status"] == "ready":
+            params = result["params"]
+            break
+
+        # Need more info — ask the user
+        question = result["question"]
+        print(f"\n💬 {question}")
+        conversation_history.append({"role": "user", "content": query})
+        conversation_history.append({"role": "assistant", "content": question})
+
+        answer = input("👤 ")
+        if not answer.strip():
+            print("Нет ответа, используем значения по умолчанию.")
+            params = {"days": 3, "people": 2, "preferences": "сбалансированное питание"}
+            break
+
+        query = answer
+        conversation_history.append({"role": "user", "content": answer})
+
+    # Execute
+    result = agent.execute(params)
     print_results(result)
 
 
