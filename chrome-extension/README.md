@@ -1,169 +1,254 @@
 # Perekrestok AI Assistant - Chrome Extension
 
-AI-powered shopping assistant for Perekrestok.ru online grocery store.
+AI-помощник для покупок в интернет-магазине Перекрёсток.
 
-## Features
+## Возможности
 
-- 💬 **Chat Interface** - Natural language interaction with AI assistant
-- 🛒 **Smart Shopping** - Build carts from text requests like "Собери мне завтрак"
-- 🔍 **Product Search** - Find products by name, category, or fuzzy matching
-- ⚡ **Quick Actions** - One-click suggestions for breakfast, lunch, dinner
-- 🎨 **Material Design** - Clean, modern UI with Perekrestok brand colors
+- 💬 **Чат-интерфейс** — общение с AI-помощником на естественном языке
+- 🛒 **Умный шоппинг** — формирование корзины по текстовым запросам вроде «Собери мне завтрак»
+- 🔍 **Поиск продуктов** — поиск товаров по названию, категории или нечёткому соответствию
+- ⚡ **Быстрые действия** — готовые предложения для завтрака, обеда, ужина и перекуса
+- 🎨 **Material Design** — современный UI в фирменных цветах Перекрёстка
+- 🎤 **Голосовой ввод** — поддержка голосовых запросов на русском языке
+- 📦 **Карточки товаров** — отображение найденных товаров с изображениями и ценами
+- ✅ **Подтверждение действий** — запрос подтверждения перед добавлением товаров в корзину
+- 📊 **Индикация прогресса** — визуальное отображение процесса добавления товаров
 
-## Installation
+## Установка
 
-### Development Mode
+### Режим разработки
 
-1. **Clone or download** this repository
+1. **Клонируйте или скачайте** этот репозиторий
 
-2. **Open Chrome Extensions**
-   - Navigate to `chrome://extensions/` in Chrome
-   - Or go to Menu → More Tools → Extensions
+2. **Откройте Chrome Extensions**
+   - Перейдите по адресу `chrome://extensions/` в Chrome
+   - Или через меню → Дополнительные инструменты → Расширения
 
-3. **Enable Developer Mode**
-   - Toggle the "Developer mode" switch in the top right
+3. **Включите режим разработчика**
+   - Переключите ползунок «Режим разработчика» в правом верхнем углу
 
-4. **Load Unpacked Extension**
-   - Click "Load unpacked"
-   - Select the `chrome-extension` folder
+4. **Загрузите распакованное расширение**
+   - Нажмите «Загрузить распакованное»
+   - Выберите папку `chrome-extension`
 
-5. **Navigate to Perekrestok**
-   - Go to `https://perekrestok.ru`
-   - The extension will activate on the domain
+5. **Перейдите на сайт Перекрёсток**
+   - Откройте `https://perekrestok.ru`
+   - Расширение активируется на домене
 
-### Usage
+## Использование
 
-1. Click the extension icon in the Chrome toolbar
-2. Type your request in natural language (e.g., "Добавь молоко и яйца")
-3. Review suggested products
-4. Click "В корзину" to add items
-5. Proceed to checkout on the website
+1. Нажмите на иконку расширения в панели инструментов Chrome
+2. Введите запрос на естественном языке (например, «Добавь молоко и яйца»)
+3. Используйте голосовой ввод через кнопку 🎤
+4. Или выберите быстрое действие: «Завтрак», «Обед», «Ужин», «Перекус»
+5. Просмотрите предложенные товары
+6. Нажмите «В корзину» для добавления товаров
+7. Перейдите к оформлению заказа на сайте
 
-## Project Structure
+## Структура проекта
 
 ```
 chrome-extension/
-├── manifest.json          # Extension configuration (Manifest V3)
+├── manifest.json          # Конфигурация расширения (Manifest V3)
 ├── icons/
-│   ├── icon16.png         # 16x16 icon
-│   ├── icon48.png         # 48x48 icon
-│   └── icon128.png        # 128x128 icon
+│   ├── icon16.png         # Иконка 16x16
+│   ├── icon48.png         # Иконка 48x48
+│   └── icon128.png        # Иконка 128x128
 ├── popup/
-│   ├── popup.html         # Chat UI structure
-│   ├── popup.css          # Material Design styles
-│   └── popup.js           # Chat logic and message handling
+│   ├── popup.html         # Структура чат-интерфейса
+│   ├── popup.css          # Стили Material Design с градиентами и анимациями
+│   └── popup.js           # Логика чата, обработка сообщений, голосовой ввод
 ├── content/
-│   └── content.js         # Page interaction, DOM parsing
+│   └── content.js         # Взаимодействие со страницей, парсинг DOM, добавление в корзину
 ├── background/
-│   └── background.js      # Service worker, message routing
+│   └── background.js      # Service worker, маршрутизация сообщений, связь с API
 └── services/
-    └── api.js             # Backend API client
+    └── api.js             # API-клиент для связи с бэкендом
 ```
 
-## Configuration
+## Фронтенд-архитектура
+
+### Компоненты UI
+
+#### 1. **Chat Header**
+- Логотип Перекрёстка (SVG, 4 лепестка)
+- Индикатор статуса подключения
+- Кнопка закрытия
+
+#### 2. **Messages Area**
+- Сообщения от AI (слева, с иконкой агента)
+- Сообщения пользователя (справа, с иконкой пользователя)
+- Анимация появления сообщений
+- Индикатор набора текста («Думаю» с анимированными точками)
+
+#### 3. **Input Area**
+- Поле ввода текста
+- Кнопка голосового ввода (Web Speech API)
+- Кнопка отправки
+- Быстрые действия (Завтрак, Обед, Ужин, Перекус)
+
+#### 4. **Product Cards**
+- Изображение товара
+- Название и цена
+- Кнопка «В корзину» с иконкой
+- Анимация при наведении
+
+#### 5. **Cart Progress**
+- Поэлементное отображение процесса добавления
+- Индикаторы статуса (ожидание, успех, ошибка)
+- Итоговая сводка
+
+#### 6. **Toast Notifications**
+- Всплывающие уведомления об успехах/ошибках
+- Автоматическое скрытие через 3 секунды
+
+### Технические особенности
+
+#### Стили (CSS)
+- **CSS Variables** — централизованное управление цветами и отступами
+- **Градиенты** — фирменные зелёные цвета Перекрёстка
+- **Backdrop Filter** — эффекты размытия для современного вида
+- **Анимации** — плавные переходы, пульсация, появление
+- **Адаптивность** — фиксированный размер popup (400x580px)
+
+#### JavaScript
+- **Модульная структура** — ES6 modules
+- **Chrome Storage API** — сохранение истории чата (последние 50 сообщений)
+- **Web Speech API** — распознавание речи (ru-RU)
+- **Event-driven архитектура** — обмен сообщениями между popup, content script и background
+
+#### Интеграция с бэкендом
+- **API Client** — класс с retry-логикой и таймаутами
+- **Fallback режим** — работа без бэкенда с помощью ключевых слов
+- **Health check** — периодическая проверка доступности API
+
+## Конфигурация
 
 ### Backend API
 
-Edit `services/api.js` to configure the backend URL:
+Отредактируйте `services/api.js` для настройки URL бэкенда:
 
 ```javascript
 export const API_CONFIG = {
-  BASE_URL: 'http://localhost:8000/api/v1', // Change for production
+  BASE_URL: 'http://localhost:8000/api/v1', // Измените для production
   TIMEOUT: 30000,
   RETRIES: 3
 };
 ```
 
-## Development
+## Разработка
 
-### Testing the Extension
+### Тестирование расширения
 
-1. Open `chrome://extensions/`
-2. Find "Perekrestok AI Assistant"
-3. Click "Inspect views: popup" to debug the popup
-4. Click "Inspect views: service worker" to debug background script
-5. Right-click on Perekrestok page → Inspect → Console for content script logs
+1. Откройте `chrome://extensions/`
+2. Найдите «Perekrestok AI Assistant»
+3. Нажмите «Inspect views: popup» для отладки popup
+4. Нажмите «Inspect views: service worker» для отладки background скрипта
+5. Откройте DevTools на странице Перекрёстка → Console для логов content скрипта
 
-### Reloading Changes
+### Применение изменений
 
-After making code changes:
-1. Go to `chrome://extensions/`
-2. Click the refresh icon 🔄 on the extension card
-3. Re-open the popup to see changes
+После внесения изменений в код:
+1. Перейдите на `chrome://extensions/`
+2. Нажмите иконку обновления 🔄 на карточке расширения
+3. Переоткройте popup для применения изменений
 
-### Debugging Tips
+### Советы по отладке
 
-- **Popup**: Right-click popup → Inspect
-- **Content Script**: Page DevTools → Console (filter by content script)
+- **Popup**: ПКМ по popup → Inspect
+- **Content Script**: DevTools страницы → Console (фильтр по content script)
 - **Background**: `chrome://extensions/` → Service Worker → Inspect
 
-## Permissions
+### Логирование
 
-| Permission | Purpose |
-|------------|---------|
-| `activeTab` | Access current tab for product parsing |
-| `scripting` | Inject content scripts |
-| `storage` | Save chat history locally |
-| `host_permissions` | Access Perekrestok.ru pages |
+Все модули используют префиксы для удобной фильтрации в консоли:
+- `[Perekrestok AI]` — общие сообщения
+- `[API Client]` — запросы к бэкенду
 
-## Backend Requirements
+## Разрешения
 
-The extension expects a FastAPI backend with these endpoints:
+| Разрешение | Назначение |
+|------------|------------|
+| `activeTab` | Доступ к текущей вкладке для парсинга товаров |
+| `scripting` | Инъекция контент-скриптов |
+| `storage` | Локальное сохранение истории чата |
+| `host_permissions` | Доступ к страницам Perekrestok.ru |
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/v1/chat` | POST | Send message, get AI response |
-| `/api/v1/search` | POST | Search products |
-| `/api/v1/products` | GET | Get all products |
-| `/api/v1/cart/add` | POST | Add product to cart |
-| `/api/v1/health` | GET | Health check |
+## Требования к бэкенду
 
-See the backend specification in `../perekrestok_ai_agent_spec.md` for details.
+Расширение ожидает FastAPI бэкенд со следующими эндпоинтами:
 
-## Troubleshooting
+| Эндпоинт | Метод | Описание |
+|----------|-------|----------|
+| `/api/v1/chat` | POST | Отправить сообщение, получить AI-ответ |
+| `/api/v1/search` | POST | Поиск товаров |
+| `/api/v1/products` | GET | Получить все товары |
+| `/api/v1/cart/add` | POST | Добавить товар в корзину |
+| `/api/v1/health` | GET | Проверка доступности |
 
-### Extension not working on Perekrestok
+Подробности в спецификации бэкенда: `../perekrestok_ai_agent_spec.md`
 
-- Ensure you're on `https://perekrestok.ru` or `https://www.perekrestok.ru`
-- Check if the extension is enabled in `chrome://extensions/`
-- Reload the extension
+## Решение проблем
 
-### Products not parsing
+### Расширение не работает на Перекрёстке
 
-- Navigate to a catalog page with products
-- Wait for the page to fully load
-- Check console for parsing errors
+- Убедитесь, что вы находитесь на `https://perekrestok.ru` или `https://www.perekrestok.ru`
+- Проверьте, включено ли расширение в `chrome://extensions/`
+- Перезагрузите расширение
 
-### Backend connection errors
+### Товары не парсятся
 
-- Verify backend is running at the configured URL
-- Check CORS settings on the backend
-- Ensure network connectivity
+- Перейдите на страницу каталога с товарами
+- Дождитесь полной загрузки страницы
+- Проверьте консоль на наличие ошибок парсинга
 
-## Browser Support
+### Ошибки подключения к бэкенду
 
-- ✅ Google Chrome (tested)
-- ✅ Microsoft Edge (Chromium-based)
-- ⚠️ Other Chromium browsers (untested)
+- Убедитесь, что бэкенд запущен по настроенному URL
+- Проверьте настройки CORS на бэкенде
+- Убедитесь в наличии сетевого подключения
 
-## Security Notes
+### Голосовой ввод не работает
 
-- Extension works **only** on Perekrestok.ru domain
-- No personal data is stored or transmitted
-- No access to payment information
-- Chat history stored locally in Chrome storage
+- Проверьте разрешения на доступ к микрофону в настройках Chrome
+- Убедитесь, что микрофон подключён и работает
+- Голосовой ввод поддерживается только в Chrome и Edge
 
-## License
+## Поддержка браузеров
 
-Internal project for HAC HSE.
+- ✅ Google Chrome (протестировано)
+- ✅ Microsoft Edge (на базе Chromium)
+- ⚠️ Другие браузеры на Chromium (не тестировалось)
+- ❌ Firefox, Safari (не поддерживаются, требуется WebExtensions API)
 
-## Contributing
+## Безопасность
 
-1. Create a feature branch
-2. Make your changes
-3. Test thoroughly on Perekrestok.ru
-4. Submit a pull request
+- Расширение работает **только** на домене Perekrestok.ru
+- Личные данные не сохраняются и не передаются
+- Нет доступа к платёжной информации
+- История чата хранится локально в Chrome Storage
+- Все запросы к бэкенду используют HTTPS (в production)
+
+## Лицензия
+
+Внутренний проект для HAC HSE.
+
+## Вклад в проект
+
+1. Создайте feature-ветку
+2. Внесите изменения
+3. Протестируйте тщательно на Perekrestok.ru
+4. Отправьте pull request
+
+## Планы развития
+
+- 🎨 Плавающий виджет чата на странице (вместо popup)
+- 📸 Распознавание товаров по изображению
+- 🔔 Push-уведомления о скидках
+- 📊 Анализ истории покупок
+- 🍳 Рекомендации рецептов на основе корзины
+- 💳 Интеграция с программой лояльности
 
 ---
 
-**Note**: This is a prototype/development version. For production deployment, additional security reviews and optimizations are required.
+**Примечание**: Это прототип/разработческая версия. Для production-развёртывания требуются дополнительный аудит безопасности и оптимизации.
