@@ -433,7 +433,11 @@ function handleConfirmationResponse(message) {
 
 async function confirmAddToCart() {
   isWaitingForConfirmation = false;
-  
+
+  // Create progress message
+  const progressMessageId = 'cartProgress_' + Date.now();
+  showCartProgress(progressMessageId, pendingProducts);
+
   try {
     const response = await chrome.runtime.sendMessage({
       type: 'ADD_TO_CART',
@@ -441,15 +445,26 @@ async function confirmAddToCart() {
     });
 
     if (response.success) {
-      addMessage(`✅ Добавлено ${pendingProducts.length} товар(а) в корзину!`, 'agent');
-      showToast('Товары добавлены в корзину', 'success');
+      // Update UI for successful items
+      updateCartProgressSuccess(progressMessageId, pendingProducts.slice(0, response.added));
+      
+      // Show errors for failed items
+      if (response.failed > 0 && response.errors) {
+        response.errors.forEach((err, index) => {
+          setTimeout(() => {
+            updateCartProgressItem(progressMessageId, response.added + index, 'error', `❌ ${err.product}: ${err.error || 'Недоступен'}`);
+          }, (response.added + index) * 200);
+        });
+      }
+      
+      showToast(`Добавлено ${response.added} товар(а) в корзину`, 'success');
     } else {
-      addMessage('Не удалось добавить товары. Попробуйте вручную.', 'agent');
+      updateCartProgressError(progressMessageId, response.error || 'Не удалось добавить товары');
       showToast('Ошибка добавления в корзину', 'error');
     }
   } catch (error) {
     console.error('Error adding to cart:', error);
-    addMessage('Ошибка при добавлении в корзину.', 'agent');
+    updateCartProgressError(progressMessageId, error.message);
     showToast('Ошибка', 'error');
   }
 
@@ -463,6 +478,33 @@ function cancelAddToCart() {
 }
 
 async function addToCart(product) {
+  const progressMessageId = 'cartProgress_' + Date.now();
+  
+  // Show single item progress
+  const messageDiv = document.createElement('div');
+  messageDiv.className = 'message message-agent';
+  messageDiv.id = progressMessageId;
+  messageDiv.innerHTML = `
+    <div class="message-avatar agent-avatar">
+      ${AGENT_ICON}
+    </div>
+    <div class="message-content">
+      <div class="message-bubble">
+        <div class="cart-progress">
+          <div class="progress-item pending">
+            <div class="progress-icon">
+              <div class="spinner"></div>
+            </div>
+            <span class="progress-text">Добавляю "${escapeHtml(product.name)}"...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  messagesContainer.appendChild(messageDiv);
+  scrollToBottom();
+
   try {
     const response = await chrome.runtime.sendMessage({
       type: 'ADD_SINGLE_TO_CART',
@@ -470,12 +512,18 @@ async function addToCart(product) {
     });
 
     if (response.success) {
+      updateCartProgressItem(progressMessageId, 0, 'success');
+      setTimeout(() => {
+        addProgressSummary(progressMessageId, 1, 0);
+      }, 300);
       showToast('Товар добавлен в корзину', 'success');
     } else {
+      updateCartProgressItem(progressMessageId, 0, 'error', response.error || 'Не удалось добавить товар');
       showToast('Не удалось добавить товар', 'error');
     }
   } catch (error) {
     console.error('Error adding to cart:', error);
+    updateCartProgressItem(progressMessageId, 0, 'error', error.message);
     showToast('Ошибка', 'error');
   }
 }
@@ -501,9 +549,12 @@ function showTypingIndicator() {
     </div>
     <div class="message-content">
       <div class="typing-indicator">
-        <span></span>
-        <span></span>
-        <span></span>
+        <span class="typing-text">Думаю</span>
+        <div class="typing-dots">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
       </div>
     </div>
   `;
@@ -590,4 +641,116 @@ function clearChatHistory() {
   chrome.storage.local.remove(['chatHistory']);
   messagesContainer.innerHTML = '';
   location.reload();
+}
+
+// Cart Progress Functions
+function showCartProgress(messageId, products) {
+  const messageDiv = document.createElement('div');
+  messageDiv.className = 'message message-agent';
+  messageDiv.id = messageId;
+
+  const itemsHtml = products.map((product, index) => `
+    <div class="progress-item pending" data-product-index="${index}">
+      <div class="progress-icon">
+        <div class="spinner"></div>
+      </div>
+      <span class="progress-text">Добавляю "${escapeHtml(product.name)}"...</span>
+    </div>
+  `).join('');
+
+  messageDiv.innerHTML = `
+    <div class="message-avatar agent-avatar">
+      ${AGENT_ICON}
+    </div>
+    <div class="message-content">
+      <div class="message-bubble">
+        <div class="cart-progress">
+          ${itemsHtml}
+        </div>
+      </div>
+    </div>
+  `;
+
+  messagesContainer.appendChild(messageDiv);
+  scrollToBottom();
+}
+
+function updateCartProgressItem(messageId, productIndex, status, errorMessage = null) {
+  const messageElement = document.getElementById(messageId);
+  if (!messageElement) return;
+
+  const progressItem = messageElement.querySelector(`.progress-item[data-product-index="${productIndex}"]`);
+  if (!progressItem) return;
+
+  const iconContainer = progressItem.querySelector('.progress-icon');
+  const progressText = progressItem.querySelector('.progress-text');
+
+  progressItem.classList.remove('pending', 'success', 'error');
+  progressItem.classList.add(status);
+
+  if (status === 'success') {
+    iconContainer.innerHTML = `
+      <svg class="success-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    `;
+    progressText.textContent = progressText.textContent.replace('Добавляю', 'Добавлено').replace('...', '');
+  } else if (status === 'error') {
+    iconContainer.innerHTML = `
+      <svg class="error-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    `;
+    if (errorMessage) {
+      progressText.textContent = errorMessage;
+    }
+  }
+}
+
+function updateCartProgressSuccess(messageId, products) {
+  products.forEach((_, index) => {
+    setTimeout(() => {
+      updateCartProgressItem(messageId, index, 'success');
+    }, index * 200);
+  });
+
+  // Add summary after all items are processed
+  setTimeout(() => {
+    addProgressSummary(messageId, products.length, 0);
+  }, products.length * 200 + 300);
+}
+
+function updateCartProgressError(messageId, error) {
+  const messageElement = document.getElementById(messageId);
+  if (!messageElement) return;
+
+  // Mark all pending items as error
+  const pendingItems = messageElement.querySelectorAll('.progress-item.pending');
+  pendingItems.forEach((item, index) => {
+    setTimeout(() => {
+      updateCartProgressItem(messageId, index, 'error', error);
+    }, index * 100);
+  });
+}
+
+function addProgressSummary(messageId, successCount, errorCount) {
+  const messageElement = document.getElementById(messageId);
+  if (!messageElement) return;
+
+  const cartProgress = messageElement.querySelector('.cart-progress');
+  if (!cartProgress) return;
+
+  const summaryDiv = document.createElement('div');
+  summaryDiv.className = 'progress-summary';
+  summaryDiv.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M9 20C9.55228 20 10 20.4477 10 21C10 21.5523 9.55228 22 9 22C8.44772 22 8 21.5523 8 21C8 20.4477 8.44772 20 9 20Z" fill="currentColor"/>
+      <path d="M20 20C20.5523 20 21 20.4477 21 21C21 21.5523 20.5523 22 20 22C19.4477 22 19 21.5523 19 21C19 20.4477 19.4477 20 20 20Z" fill="currentColor"/>
+      <path d="M1 1H5L7.68 14.39C7.84676 15.2233 8.27386 15.9874 8.90667 16.5839C9.53948 17.1804 10.3493 17.5817 11.22 17.73H19.41C20.2233 17.5973 20.9691 17.1903 21.5466 16.5642C22.1241 15.9381 22.5051 15.1234 22.64 14.23L23 12H6L5 7H2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span>Готово! Добавлено ${successCount} товар(а) в корзину</span>
+  `;
+
+  cartProgress.appendChild(summaryDiv);
+  scrollToBottom();
 }

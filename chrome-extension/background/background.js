@@ -165,13 +165,36 @@ async function handleAddToCart(products) {
       return { success: false, error: 'No active tab' };
     }
 
-    // Send message to content script
-    const response = await chrome.tabs.sendMessage(activeTabId, {
-      type: 'ADD_MULTIPLE_TO_CART',
-      products: products
-    });
+    const results = {
+      added: 0,
+      failed: 0,
+      errors: []
+    };
 
-    return response;
+    // Add products one by one with delay
+    for (const product of products) {
+      try {
+        const response = await chrome.tabs.sendMessage(activeTabId, {
+          type: 'ADD_TO_CART',
+          product: product
+        });
+
+        if (response.success) {
+          results.added++;
+        } else {
+          results.failed++;
+          results.errors.push({ product: product.name, error: response.error });
+        }
+      } catch (error) {
+        results.failed++;
+        results.errors.push({ product: product.name, error: error.message });
+      }
+
+      // Small delay between additions for visual effect
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    return { success: results.added > 0, ...results };
   } catch (error) {
     console.error('[Perekrestok AI] Error adding to cart:', error);
     return { success: false, error: error.message };
