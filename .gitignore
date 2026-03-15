@@ -22,6 +22,7 @@ __pycache__/
 .env
 .venv/
 venv/
+.python-version
 
 # Backend
 *.log
@@ -30,8 +31,15 @@ venv/
 *.tmp
 *.bak
 
-# Icons build files
+# Data cache
+data/embeddings.npy
+data/embedding_ids.npy
+
+# Chrome extension build
 chrome-extension/icons/package.json
 chrome-extension/icons/package-lock.json
 chrome-extension/icons/generate.js
 chrome-extension/icons/node_modules/
+
+
+CLAUDE.md
