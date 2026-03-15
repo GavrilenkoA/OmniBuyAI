@@ -58,17 +58,37 @@ main.py                # CLI entry point
 
 ## Setup
 
-**Requirements:** Python 3.12+, [uv](https://docs.astral.sh/uv/)
+**Requirements:** Python 3.12+
+
+### 1. Install uv
 
 ```bash
-# 1. Clone
+# macOS / Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# Or via pip
+pip install uv
+```
+
+After installation, restart your terminal or run `source ~/.bashrc` / `source ~/.zshrc`.
+
+### 2. Clone and install
+
+```bash
 git clone git@github.com:GavrilenkoA/OmniBuyAI.git
 cd OmniBuyAI
 
-# 2. Install dependencies
+# Install Python 3.12 and project dependencies
+uv python install 3.12
 uv sync
+```
 
-# 3. Configure API key
+### 3. Configure API key
+
+```bash
 cp .env.example .env
 # Edit .env and set your OpenAI API key:
 #   OPENAI_API_KEY=sk-proj-...
@@ -80,7 +100,7 @@ cp .env.example .env
 OPENAI_API_KEY=sk-proj-...
 
 # --- Models ---
-OPENAI_MODEL=gpt-4o-mini
+OPENAI_MODEL=gpt-5-nano
 EMBEDDING_MODEL=text-embedding-3-small
 ```
 
