@@ -1,5 +1,5 @@
 import logging
-from collections.abc import Callable, Awaitable
+from collections.abc import Callable
 
 from .cart_builder import build_cart
 from .data_loader import load_products
@@ -7,15 +7,13 @@ from .models import Product
 from .planner import (
     analyze_request,
     generate_meal_plan,
-    select_product_candidates,
+    select_products_for_day,
 )
 from .retrieval import rank_available
 
 logger = logging.getLogger(__name__)
 
-# Type for availability checker: takes list[int], returns set[int]
 AvailabilityChecker = Callable[[list[int]], set[int]]
-AsyncAvailabilityChecker = Callable[[list[int]], Awaitable[set[int]]]
 
 
 class GroceryAgent:
@@ -48,138 +46,35 @@ class GroceryAgent:
         logger.info("Анализ запроса: %s", result.get("status"))
         return result
 
-    def _build_cart(
-        self,
-        params: dict,
-        available_ids: set[int] | None = None,
-    ) -> dict:
-        """Core logic: meal plan → candidates → filter by availability → cart.
-
-        Args:
-            params: resolved query params
-            available_ids: set of available product IDs (None = all available)
-
-        Returns full result dict.
-        """
-        self._ensure_loaded()
-
-        people = params.get("people", 2)
-        product_map = {p.internal_id: p for p in self.products}
-
-        # 1. Generate meal plan
-        logger.info("Составление плана питания...")
-        meal_plan = generate_meal_plan(params)
-        logger.info("План: %d дней", len(meal_plan))
-
-        # 2. Select candidates for each meal
-        logger.info("Подбор кандидатов товаров...")
-        all_candidate_groups: list[dict] = []
-
-        for day_plan in meal_plan:
-            for meal in day_plan["meals"]:
-                dishes = meal["dishes"]
-                logger.info("  %s день %d: %s",
-                            meal["meal_type"], day_plan["day"], ", ".join(dishes))
-                groups = select_product_candidates(dishes, self.products, people)
-                for g in groups:
-                    logger.info("    → %s: %d кандидатов, qty=%d",
-                                g["role"], len(g["candidates"]), g["quantity"])
-                all_candidate_groups.extend(groups)
-
-        # 3. Collect all candidate IDs
-        all_candidate_ids = list({
-            pid for group in all_candidate_groups for pid in group["candidates"]
-        })
-        logger.info("Всего уникальных кандидатов: %d", len(all_candidate_ids))
-
-        # 4. Check availability
-        if available_ids is None:
-            if self._check_availability:
-                logger.info("Проверка наличия через callback...")
-                available_ids = self._check_availability(all_candidate_ids)
-                logger.info("Доступно %d из %d", len(available_ids), len(all_candidate_ids))
-            else:
-                available_ids = set(all_candidate_ids)
-
-        # 5. For each group, pick the best available
-        final_selections: list[tuple[int, int]] = []
-        unavailable_roles: list[str] = []
-
-        for group in all_candidate_groups:
-            best_id = rank_available(group["candidates"], available_ids, product_map)
-            if best_id is not None:
-                p = product_map[best_id]
-                logger.info("  ✅ %s → %s (ID:%d)", group["role"], p.title, best_id)
-                final_selections.append((best_id, group["quantity"]))
-            else:
-                unavailable_roles.append(group["role"])
-                logger.warning("  ❌ %s → нет доступных", group["role"])
-
-        # 6. Build cart
-        cart_items = build_cart(final_selections, self.products)
-        total_price = sum(item.price * item.quantity for item in cart_items)
-        cart = {item.internal_id: item.quantity for item in cart_items}
-
-        logger.info("Корзина: %d позиций, %.2f₽", len(cart), total_price)
-
-        result = {
-            "cart": cart,
-            "meal_plan": meal_plan,
-            "total_price": round(total_price, 2),
-            "params": params,
-            "candidate_groups": all_candidate_groups,
-        }
-
-        if unavailable_roles:
-            result["unavailable"] = unavailable_roles
-
-        return result
-
-    def execute(self, params: dict) -> dict:
-        """Build a grocery cart from resolved params (sync)."""
-        return self._build_cart(params)
-
-    def execute_with_availability(
-        self,
-        params: dict,
-        available_ids: set[int],
-    ) -> dict:
-        """Build cart using pre-checked availability data.
-
-        Use this when the caller has already checked availability
-        (e.g. basket_service checked via Perekrestok API).
-        """
-        return self._build_cart(params, available_ids=available_ids)
-
     def get_all_candidate_ids(self, params: dict) -> tuple[dict, list[dict]]:
-        """Phase 1: generate meal plan + candidates without availability check.
+        """Phase 1: generate meal plan + candidates (1 LLM call per day).
 
         Returns:
-            (result_partial, candidate_groups)
-            where result_partial has meal_plan and params,
-            and candidate_groups is [{role, candidates, quantity}, ...]
+            (partial_result, candidate_groups)
         """
         self._ensure_loaded()
-
         people = params.get("people", 2)
 
         logger.info("Составление плана питания...")
         meal_plan = generate_meal_plan(params)
         logger.info("План: %d дней", len(meal_plan))
 
+        # One LLM call per day (not per meal)
         logger.info("Подбор кандидатов товаров...")
         all_candidate_groups: list[dict] = []
 
         for day_plan in meal_plan:
+            day_dishes = []
             for meal in day_plan["meals"]:
-                dishes = meal["dishes"]
-                logger.info("  %s день %d: %s",
-                            meal["meal_type"], day_plan["day"], ", ".join(dishes))
-                groups = select_product_candidates(dishes, self.products, people)
-                for g in groups:
-                    logger.info("    → %s: %d кандидатов, qty=%d",
-                                g["role"], len(g["candidates"]), g["quantity"])
-                all_candidate_groups.extend(groups)
+                day_dishes.extend(meal["dishes"])
+
+            logger.info("  День %d: %s", day_plan["day"], ", ".join(day_dishes))
+            groups = select_products_for_day(day_dishes, self.products, people)
+
+            for g in groups:
+                logger.info("    → %s: %d кандидатов, qty=%d",
+                            g["role"], len(g["candidates"]), g["quantity"])
+            all_candidate_groups.extend(groups)
 
         all_ids = list({pid for g in all_candidate_groups for pid in g["candidates"]})
         logger.info("Всего уникальных кандидатов: %d", len(all_ids))
@@ -231,6 +126,19 @@ class GroceryAgent:
             result["unavailable"] = unavailable_roles
 
         return result
+
+    def execute(self, params: dict) -> dict:
+        """Build a grocery cart (sync, with optional availability check)."""
+        partial, groups = self.get_all_candidate_ids(params)
+
+        if self._check_availability:
+            logger.info("Проверка наличия через callback...")
+            available_ids = self._check_availability(partial["all_candidate_ids"])
+            logger.info("Доступно %d из %d", len(available_ids), len(partial["all_candidate_ids"]))
+        else:
+            available_ids = set(partial["all_candidate_ids"])
+
+        return self.finalize_cart(groups, available_ids, partial["meal_plan"], params)
 
     def run(self, user_query: str) -> dict:
         """Full pipeline: clarify → execute.
