@@ -2,17 +2,21 @@
 const messagesContainer = document.getElementById('messagesContainer');
 const userInput = document.getElementById('userInput');
 const sendButton = document.getElementById('sendButton');
+const voiceButton = document.getElementById('voiceButton');
 const quickActionBtns = document.querySelectorAll('.quick-action-btn');
 const productCardTemplate = document.getElementById('productCardTemplate');
 
 // State
 let isWaitingForConfirmation = false;
 let pendingProducts = [];
+let recognition = null;
+let isRecording = false;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
   loadChatHistory();
+  initSpeechRecognition();
 });
 
 function setupEventListeners() {
@@ -23,6 +27,8 @@ function setupEventListeners() {
     }
   });
 
+  voiceButton.addEventListener('click', toggleVoiceRecognition);
+
   quickActionBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       const query = btn.dataset.query;
@@ -30,6 +36,130 @@ function setupEventListeners() {
       handleSendMessage();
     });
   });
+}
+
+// Speech Recognition
+function initSpeechRecognition() {
+  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.lang = 'ru-RU';
+    recognition.interimResults = false;
+    recognition.continuous = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      console.log('Speech recognition started');
+      isRecording = true;
+      voiceButton.classList.add('recording');
+      voiceButton.title = 'Запись...';
+    };
+
+    recognition.onend = () => {
+      console.log('Speech recognition ended');
+      isRecording = false;
+      voiceButton.classList.remove('recording');
+      voiceButton.title = 'Голосовой ввод';
+    };
+
+    recognition.onresult = (event) => {
+      console.log('Speech recognition result:', event);
+      const transcript = event.results[0][0].transcript;
+      userInput.value = transcript;
+      handleSendMessage();
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error);
+      isRecording = false;
+      voiceButton.classList.remove('recording');
+      voiceButton.title = 'Голосовой ввод';
+
+      if (event.error === 'not-allowed') {
+        showToast('Доступ к микрофону запрещён', 'error');
+      } else if (event.error === 'no-speech') {
+        showToast('Речь не обнаружена', 'error');
+      } else if (event.error === 'audio-capture') {
+        showToast('Микрофон не найден', 'error');
+      } else if (event.error === 'aborted') {
+        // User cancelled, do nothing
+        return;
+      } else {
+        showToast('Ошибка распознавания: ' + event.error, 'error');
+      }
+    };
+  } else {
+    voiceButton.style.display = 'none';
+    console.warn('Speech Recognition API not supported');
+  }
+}
+
+function toggleVoiceRecognition() {
+  console.log('toggleVoiceRecognition called, isRecording:', isRecording, 'recognition:', recognition);
+  
+  if (!recognition) {
+    showToast('Голосовой ввод не поддерживается', 'error');
+    return;
+  }
+
+  if (isRecording) {
+    recognition.stop();
+  } else {
+    try {
+      // Create new recognition instance each time to avoid state issues
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition = new SpeechRecognition();
+      recognition.lang = 'ru-RU';
+      recognition.interimResults = false;
+      recognition.continuous = false;
+      recognition.maxAlternatives = 1;
+      
+      recognition.onstart = () => {
+        console.log('Speech recognition started');
+        isRecording = true;
+        voiceButton.classList.add('recording');
+        voiceButton.title = 'Запись...';
+      };
+
+      recognition.onend = () => {
+        console.log('Speech recognition ended');
+        isRecording = false;
+        voiceButton.classList.remove('recording');
+        voiceButton.title = 'Голосовой ввод';
+      };
+
+      recognition.onresult = (event) => {
+        console.log('Speech recognition result:', event);
+        const transcript = event.results[0][0].transcript;
+        userInput.value = transcript;
+        handleSendMessage();
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        isRecording = false;
+        voiceButton.classList.remove('recording');
+        voiceButton.title = 'Голосовой ввод';
+
+        if (event.error === 'not-allowed') {
+          showToast('Доступ к микрофону запрещён', 'error');
+        } else if (event.error === 'no-speech') {
+          showToast('Речь не обнаружена', 'error');
+        } else if (event.error === 'audio-capture') {
+          showToast('Микрофон не найден', 'error');
+        } else if (event.error === 'aborted') {
+          return;
+        } else {
+          showToast('Ошибка распознавания: ' + event.error, 'error');
+        }
+      };
+      
+      recognition.start();
+    } catch (error) {
+      console.error('Failed to start recognition:', error);
+      showToast('Ошибка запуска микрофона', 'error');
+    }
+  }
 }
 
 // Message Handling
@@ -365,7 +495,7 @@ function loadChatHistory() {
 }
 
 // Clear chat option (can be triggered from menu)
-export function clearChatHistory() {
+function clearChatHistory() {
   chrome.storage.local.remove(['chatHistory']);
   messagesContainer.innerHTML = '';
   location.reload();

@@ -3,7 +3,7 @@
  * Handles communication between popup, content scripts, and backend API
  */
 
-import { apiClient, API_ENDPOINTS } from './services/api.js';
+import { apiClient, API_ENDPOINTS } from '../services/api.js';
 
 // State
 let activeTabId = null;
