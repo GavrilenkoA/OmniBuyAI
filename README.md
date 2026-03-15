@@ -10,33 +10,44 @@ HSE Hackathon Project.
 User Query (natural language)
         │
         ▼
-┌─────────────────┐
-│  1. Clarify      │  LLM analyzes the query, extracts parameters
-│                  │  (days, people, preferences, budget).
-│                  │  If unclear — asks a follow-up question.
-└────────┬────────┘
-         ▼
-┌─────────────────┐
-│  2. Meal Plan    │  LLM generates a meal plan
-│                  │  (breakfast / lunch / dinner for each day).
-└────────┬────────┘
-         ▼
-┌─────────────────┐
-│  3. Retrieval    │  BM25 full-text search over 2500+ products
-│                  │  by title, category, description.
-│                  │  Ranking factors: rating, review count, discount.
-└────────┬────────┘
-         ▼
-┌─────────────────┐
-│  4. Selection    │  LLM picks specific products and quantities
-│                  │  from BM25 candidates. Prefers high-rated
-│                  │  products with many reviews and discounts.
-└────────┬────────┘
-         ▼
-┌─────────────────┐
-│  5. Cart         │  Aggregates selections, deduplicates,
-│                  │  returns {internal_id: quantity} dict.
-└─────────────────┘
+┌──────────────────────┐
+│  Phase 1: Clarify    │  LLM analyzes the query, extracts parameters
+│                      │  (days, people, preferences, budget).
+│                      │  If unclear — asks a follow-up question.
+└──────────┬───────────┘
+           ▼
+┌──────────────────────┐
+│  Phase 2: Meal Plan  │  LLM generates a meal plan
+│  + Candidates        │  (breakfast / lunch / dinner for each day).
+│                      │  For each ingredient, BM25 retrieves products
+│                      │  from 2500+ catalog, then LLM selects
+│                      │  3 candidates per ingredient (ranked by
+│                      │  rating, reviews, discount).
+└──────────┬───────────┘
+           ▼
+┌──────────────────────┐
+│  Phase 3: Availability│  All candidate IDs are sent to the
+│  Check (Server)      │  Perekrestok API via PUT requests.
+│                      │  Server returns actual availability.
+│                      │  ✅ 200 = available, ❌ else = unavailable.
+└──────────┬───────────┘
+           ▼
+┌──────────────────────┐
+│  Phase 4: Ranking    │  Filter out unavailable products.
+│  + Cart Assembly     │  For each ingredient, pick the best
+│                      │  available candidate by:
+│                      │    1. rating
+│                      │    2. review_count
+│                      │    3. discount
+│                      │    4. price (lower = better)
+│                      │  Aggregate into {internal_id: quantity}.
+└──────────┬───────────┘
+           ▼
+┌──────────────────────┐
+│  Phase 5: Add to     │  Add remaining quantities to Perekrestok
+│  Basket              │  basket (1 unit was already added during
+│                      │  availability check).
+└──────────────────────┘
 ```
 
 ## Project structure
@@ -46,13 +57,14 @@ omnibuyai/
 ├── __init__.py        # Public API: GroceryAgent
 ├── config.py          # Settings, API keys (from .env)
 ├── models.py          # Pydantic models (Product, CartItem)
-├── data_loader.py     # Load products.csv into Product list
-├── retrieval.py       # BM25 search with quality-based ranking
-├── planner.py         # LLM calls: analyze query, generate meal plan, select products
+├── data_loader.py     # Load products.csv (2500+ products, no in_stock filter)
+├── retrieval.py       # BM25 search + quality ranking + rank_available()
+├── planner.py         # LLM: analyze query, meal plan, select 3 candidates per ingredient
 ├── cart_builder.py    # Deduplicate and aggregate cart items
-├── agent.py           # Orchestrator: clarify → plan → retrieve → select → cart
+├── agent.py           # Orchestrator: clarify → candidates → availability → cart
 data/
 ├── products.csv       # 2500+ real Perekrestok products
+basket_service.py      # FastAPI service: prompt → LLM → availability check → basket
 main.py                # CLI entry point
 ```
 
@@ -106,7 +118,7 @@ EMBEDDING_MODEL=text-embedding-3-small
 
 ## Usage
 
-### CLI
+### CLI (without availability check)
 
 ```bash
 # With a query argument
@@ -123,25 +135,46 @@ uv run python main.py "Something for dinner, just me"
 
 If the query is too vague, the agent will ask a clarifying question before proceeding.
 
+### FastAPI service (with availability check + basket)
+
+```bash
+uv run uvicorn basket_service:app --reload --port 8000
+```
+
+Then send a POST request:
+
+```bash
+curl -X POST http://localhost:8000/basket/build \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "Собери ужин на двоих за 3000 рублей",
+    "session": {
+      "auth_token": "Bearer eyJ...",
+      "cookies": {"session": "...", "spid": "..."}
+    }
+  }'
+```
+
+API docs: http://localhost:8000/docs
+
 ### As a Python library
 
 ```python
 from omnibuyai import GroceryAgent
 
+# Without availability check (all candidates assumed available)
 agent = GroceryAgent()
+result = agent.run("Groceries for 3 days, 2 people")
 
-# One-shot (no interactive clarification)
-result = agent.run("Groceries for 3 days, 2 people, balanced diet")
+# With custom availability checker
+def my_check(ids: list[int]) -> set[int]:
+    # call your server, return available IDs
+    return {id for id in ids if is_available(id)}
 
-if "cart" in result:
-    print(result["cart"])        # {426943: 2, 491372: 1, ...}
-    print(result["total_price"]) # 3456.78
-    print(result["meal_plan"])   # [{day: 1, meals: [...]}, ...]
-else:
-    # Query was unclear
-    print(result["question"])    # "How many people?"
+agent = GroceryAgent(check_availability=my_check)
+result = agent.run("Groceries for 3 days, 2 people")
 
-# Two-phase (for chat bots / interactive UIs)
+# Two-phase for chat bots
 analysis = agent.clarify("Buy some food")
 # → {"status": "need_info", "question": "For how many days and people?"}
 
@@ -149,14 +182,18 @@ analysis = agent.clarify("3 days, 2 people", conversation_history=[...])
 # → {"status": "ready", "params": {"days": 3, "people": 2, ...}}
 
 result = agent.execute(analysis["params"])
-# → {"cart": {internal_id: qty, ...}, "meal_plan": [...], "total_price": ...}
+
+# Three-phase (external availability check)
+partial, groups = agent.get_all_candidate_ids(params)
+available = my_check(partial["all_candidate_ids"])
+result = agent.finalize_cart(groups, available, partial["meal_plan"], params)
 ```
 
 ### Output format
 
 ```python
 {
-    "cart": {internal_id: quantity, ...},  # {426943: 2, 491372: 1}
+    "cart": {426943: 2, 491372: 1},       # {internal_id: quantity}
     "meal_plan": [
         {"day": 1, "meals": [
             {"meal_type": "breakfast", "dishes": ["Oatmeal with berries"]},
@@ -165,6 +202,7 @@ result = agent.execute(analysis["params"])
         ]}
     ],
     "total_price": 3456.78,
-    "params": {"days": 3, "people": 2, "preferences": "balanced"}
+    "params": {"days": 3, "people": 2, "preferences": "balanced"},
+    "unavailable": ["sour cream"]         # ingredients with no available candidates
 }
 ```
