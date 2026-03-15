@@ -1,0 +1,16 @@
+[project]
+name = "omnibuyai"
+version = "0.1.0"
+description = "AI Grocery Planning Agent for Perekrestok"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "openai>=1.0",
+    "httpx",
+    "beautifulsoup4",
+    "pandas",
+    "numpy",
+    "scikit-learn",
+    "pydantic>=2.0",
+    "python-dotenv",
+]
