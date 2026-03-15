@@ -8,7 +8,6 @@ class Product(BaseModel):
     old_price: float = 0.0
     discount: str = ""
     category: str = ""
-    in_stock: bool = True
     rating: float = 0.0
     review_count: int = 0
     slug: str = ""

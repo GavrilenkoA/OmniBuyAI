@@ -38,6 +38,11 @@ def print_results(result: dict):
 
     print(f"\n  💰 ИТОГО: {result['total_price']:.2f}₽")
 
+    if result.get("unavailable"):
+        print("\n  ⚠️  Не найдены доступные товары для:")
+        for role in result["unavailable"]:
+            print(f"    - {role}")
+
     print("\n" + "=" * 60)
     print("📦 КОРЗИНА ДЛЯ API")
     print("=" * 60)

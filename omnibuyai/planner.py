@@ -8,6 +8,8 @@ from .retrieval import retrieve_products
 
 _client = OpenAI(api_key=OPENAI_API_KEY)
 
+CANDIDATES_PER_PRODUCT = 3
+
 
 def analyze_request(user_query: str, conversation_history: list[dict] | None = None) -> dict:
     """Analyze user query: either extract params or ask clarifying questions."""
@@ -88,14 +90,19 @@ def generate_meal_plan(params: dict) -> list[dict]:
     return data["meal_plan"]
 
 
-def select_products_for_dishes(
+def select_product_candidates(
     dishes: list[str],
     products: list[Product],
     people: int,
-) -> list[tuple[int, int]]:
-    """For a list of dishes, retrieve and select matching products with quantities."""
+    candidates_per_product: int = CANDIDATES_PER_PRODUCT,
+) -> list[dict]:
+    """For each required product, select multiple candidates for availability check.
+
+    Returns list of:
+        {"role": "молоко", "candidates": [internal_id, ...], "quantity": int}
+    """
     query = ", ".join(dishes)
-    candidates = retrieve_products(query, products, top_k=30)
+    candidates = retrieve_products(query, products, top_k=50)
 
     catalog_text = "\n".join(
         f"ID:{p.internal_id} | {p.category} | {p.title} | {p.price}₽"
@@ -112,14 +119,18 @@ def select_products_for_dishes(
                 "role": "system",
                 "content": (
                     "Ты — помощник по подбору продуктов из каталога супермаркета.\n"
-                    "Тебе даны блюда и каталог доступных товаров.\n"
-                    "Выбери товары и количества для приготовления блюд.\n"
-                    "ПРАВИЛА ВЫБОРА:\n"
-                    "- Предпочитай товары с высоким рейтингом и большим кол-вом отзывов\n"
-                    "- При прочих равных предпочитай товары со скидкой\n"
+                    "Тебе даны блюда и каталог товаров.\n"
+                    "Для каждого необходимого ингредиента выбери НЕСКОЛЬКО кандидатов "
+                    f"(до {candidates_per_product} штук) — похожих товаров, которые могут заменить друг друга.\n"
+                    "Это нужно на случай, если часть товаров окажется недоступна.\n\n"
+                    "ПРАВИЛА:\n"
+                    "- Первый кандидат — лучший (высокий рейтинг, много отзывов, скидка)\n"
+                    "- Остальные — альтернативы из той же категории\n"
                     "- quantity — кол-во упаковок (целое число, минимум 1)\n"
                     "- Выбирай ТОЛЬКО товары из каталога\n"
-                    '- Верни JSON: {"products": [{"internal_id": int, "quantity": int}, ...]}'
+                    '- Верни JSON: {"products": [{"role": "описание ингредиента", '
+                    f'"candidates": [id1, id2, ...до {candidates_per_product}], '
+                    '"quantity": int}, ...]}'
                 ),
             },
             {
@@ -133,53 +144,4 @@ def select_products_for_dishes(
         ],
     )
     data = json.loads(response.choices[0].message.content)
-    return [(item["internal_id"], item["quantity"]) for item in data["products"]]
-
-
-def adjust_for_nutrition(
-    current_products: list[tuple[int, int]],
-    issues: list[str],
-    products: list[Product],
-) -> list[tuple[int, int]]:
-    """Ask LLM to adjust product quantities to fix nutrition imbalances."""
-    product_map = {p.internal_id: p for p in products}
-
-    current_text = "\n".join(
-        f"ID:{pid} | {product_map[pid].title} | qty:{qty} | {product_map[pid].price}₽"
-        for pid, qty in current_products
-        if pid in product_map
-    )
-
-    issue_query = " ".join(issues)
-    extra_candidates = retrieve_products(issue_query, products, top_k=15)
-    extra_text = "\n".join(
-        f"ID:{p.internal_id} | {p.category} | {p.title} | {p.price}₽ | "
-        f"рейтинг:{p.rating} отзывы:{p.review_count}"
-        for p in extra_candidates
-    )
-
-    response = _client.chat.completions.create(
-        model=OPENAI_MODEL,
-        response_format={"type": "json_object"},
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "Ты — диетолог. Скорректируй набор продуктов.\n"
-                    "Предпочитай товары с высоким рейтингом и отзывами.\n"
-                    'Верни JSON: {"products": [{"internal_id": int, "quantity": int}, ...]}\n'
-                    "quantity=0 означает убрать товар."
-                ),
-            },
-            {
-                "role": "user",
-                "content": (
-                    f"Проблемы:\n" + "\n".join(f"- {i}" for i in issues) + "\n\n"
-                    f"Текущие товары:\n{current_text}\n\n"
-                    f"Дополнительные товары:\n{extra_text}"
-                ),
-            },
-        ],
-    )
-    data = json.loads(response.choices[0].message.content)
-    return [(item["internal_id"], item["quantity"]) for item in data["products"] if item["quantity"] > 0]
+    return data["products"]

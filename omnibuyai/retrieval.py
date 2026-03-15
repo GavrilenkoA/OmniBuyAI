@@ -69,10 +69,10 @@ def _product_text(p: Product) -> str:
 
 
 def _quality_score(p: Product) -> float:
-    """Bonus score based on rating, reviews, and discount."""
+    """Score based on rating, reviews, discount, and price."""
     score = 0.0
 
-    # Rating: 0-500 scale, high rating = good
+    # Rating: 0-500 scale
     if p.rating > 0:
         score += (p.rating / 500) * 2.0
 
@@ -110,13 +110,11 @@ def retrieve_products(
 
     bm25_scores = _bm25.score(query)
 
-    # Combine BM25 relevance with quality score
     combined = []
     for idx, bm25_sc in enumerate(bm25_scores):
         if bm25_sc > 0:
             p = _indexed_products[idx]
             quality = _quality_score(p)
-            # BM25 for relevance, quality as tiebreaker
             final_score = bm25_sc + quality * 0.5
             combined.append((idx, final_score))
 
@@ -124,9 +122,41 @@ def retrieve_products(
 
     results = [_indexed_products[idx] for idx, _ in combined[:top_k]]
 
-    # Fallback: if BM25 found very little, return top-rated products
     if len(results) < 3:
         fallback = sorted(products, key=lambda p: (p.rating, p.review_count), reverse=True)
         return fallback[:top_k]
 
     return results
+
+
+def rank_available(
+    candidate_ids: list[int],
+    available_ids: set[int],
+    product_map: dict[int, Product],
+) -> int | None:
+    """Pick the best available candidate from a list, ranked by quality.
+
+    Args:
+        candidate_ids: ordered list of candidate internal_ids
+        available_ids: set of internal_ids confirmed available by server
+        product_map: {internal_id: Product}
+
+    Returns:
+        Best available internal_id, or None if all unavailable.
+    """
+    available_candidates = [
+        pid for pid in candidate_ids
+        if pid in available_ids and pid in product_map
+    ]
+
+    if not available_candidates:
+        return None
+
+    # Rank by quality: rating > review_count > discount > lower price
+    return max(
+        available_candidates,
+        key=lambda pid: (
+            _quality_score(product_map[pid]),
+            -product_map[pid].price,
+        ),
+    )
