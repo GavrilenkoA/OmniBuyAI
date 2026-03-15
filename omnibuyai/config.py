@@ -11,8 +11,8 @@ if not OPENAI_API_KEY:
         "  OPENAI_API_KEY=sk-proj-..."
     )
 
-OPENAI_MODEL = "gpt-4o-mini"
-EMBEDDING_MODEL = "text-embedding-3-small"
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 
