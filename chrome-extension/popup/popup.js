@@ -3,6 +3,7 @@ const messagesContainer = document.getElementById('messagesContainer');
 const userInput = document.getElementById('userInput');
 const sendButton = document.getElementById('sendButton');
 const voiceButton = document.getElementById('voiceButton');
+const closeButton = document.getElementById('closeButton');
 const quickActionBtns = document.querySelectorAll('.quick-action-btn');
 const productCardTemplate = document.getElementById('productCardTemplate');
 
@@ -11,6 +12,18 @@ let isWaitingForConfirmation = false;
 let pendingProducts = [];
 let recognition = null;
 let isRecording = false;
+
+// SVG Icons
+const AGENT_ICON = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/>
+  <path d="M6 20C6 17 8 15 12 15C16 15 18 17 18 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  <path d="M9 8L10 6M15 8L14 6M12 4V2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+</svg>`;
+
+const USER_ICON = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/>
+  <path d="M6 20C6 17 8 15 12 15C16 15 18 17 18 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+</svg>`;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -21,6 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function setupEventListeners() {
   sendButton.addEventListener('click', handleSendMessage);
+  closeButton.addEventListener('click', () => window.close());
   userInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
       handleSendMessage();
@@ -31,9 +45,8 @@ function setupEventListeners() {
 
   quickActionBtns.forEach(btn => {
     btn.addEventListener('click', () => {
-      const query = btn.dataset.query;
-      userInput.value = query;
-      handleSendMessage();
+      const mealType = btn.textContent.trim();
+      showMealHint(mealType);
     });
   });
 }
@@ -165,7 +178,7 @@ function toggleVoiceRecognition() {
 // Message Handling
 async function handleSendMessage() {
   const message = userInput.value.trim();
-  if (!message || !message) return;
+  if (!message) return;
 
   if (isWaitingForConfirmation) {
     handleConfirmationResponse(message);
@@ -191,19 +204,89 @@ async function handleSendMessage() {
     if (response.success) {
       processAIResponse(response.data);
     } else {
-      addMessage(response.error || 'Произошла ошибка. Попробуйте позже.', 'agent');
+      // Fallback response when backend is unavailable
+      const fallbackResponse = getFallbackResponse(message);
+      if (fallbackResponse) {
+        addMessage(fallbackResponse, 'agent');
+      }
     }
   } catch (error) {
     hideTypingIndicator();
     console.error('Error sending message:', error);
-    addMessage('Не удалось соединиться с сервером. Проверьте подключение.', 'agent');
+    // Show helpful fallback response instead of error
+    const fallbackResponse = getFallbackResponse(message);
+    if (fallbackResponse) {
+      addMessage(fallbackResponse, 'agent');
+    }
   }
+}
+
+/**
+ * Show hint message for meal plan buttons
+ */
+function showMealHint(mealType) {
+  const mealMap = {
+    '🌅 Завтрак': 'завтрак',
+    '🍲 Обед': 'обед',
+    '🌙 Ужин': 'ужин',
+    '🍿 Перекус': 'перекус'
+  };
+  
+  const meal = mealMap[mealType] || 'питание';
+  
+  const hintHtml = `
+    <p>Например, опишите что вы хотите купить, на сколько дней и для какого количества человек.</p>
+    <p class="hint-text">"Чем подробнее запрос, тем точнее будет результат.<br>
+    Собери продукты на 5 дней для семьи из 4 человек, на ${meal}, сбалансированное питание по БЖУ".</p>
+  `;
+  addMessageWithHtml(hintHtml, 'agent');
+}
+
+/**
+ * Generate fallback response when backend API is unavailable
+ */
+function getFallbackResponse(message) {
+  const lowerMessage = message.toLowerCase();
+  
+  // Check for common shopping requests
+  if (lowerMessage.includes('завтрак')) {
+    return 'Для завтрака рекомендую: молоко, хлопья, яйца, хлеб, сыр. Перейдите в раздел "Молочные продукты" или "Хлеб" чтобы добавить товары в корзину.';
+  }
+  
+  if (lowerMessage.includes('обед')) {
+    return 'Для обеда можно приготовить: пасту, суп, салат. Перейдите в соответствующий раздел каталога для выбора продуктов.';
+  }
+  
+  if (lowerMessage.includes('ужин')) {
+    return 'Для ужина подойдут: рыба, мясо, овощи, гарнир. Перейдите в каталог для выбора продуктов.';
+  }
+  
+  if (lowerMessage.includes('перекус')) {
+    return 'Для перекуса рекомендую: орехи, фрукты, йогурт, печенье, чипсы. Перейдите в раздел "Снеки" или "Фрукты" для выбора.';
+  }
+  
+  if (lowerMessage.includes('молок')) {
+    return 'Молоко можно найти в разделе "Молочные продукты". Перейдите в каталог и я помогу найти нужные товары.';
+  }
+  
+  if (lowerMessage.includes('хлеб')) {
+    return 'Хлеб и выпечка доступны в разделе "Хлеб". Перейдите в каталог для выбора.';
+  }
+  
+  if (lowerMessage.includes('яиц')) {
+    return 'Яйца находятся в разделе "Молочные продукты". Перейдите в каталог для выбора.';
+  }
+
+  // Default response - no auto-reply
+  return '';
 }
 
 function processAIResponse(data) {
   switch (data.type) {
     case 'text':
-      addMessage(data.text, 'agent');
+      if (data.text) {
+        addMessage(data.text, 'agent');
+      }
       break;
 
     case 'products':
@@ -219,7 +302,9 @@ function processAIResponse(data) {
       break;
 
     default:
-      addMessage(data.text || 'Понял ваш запрос.', 'agent');
+      if (data.text) {
+        addMessage(data.text, 'agent');
+      }
   }
 }
 
@@ -228,10 +313,12 @@ function addMessage(content, type) {
   const messageDiv = document.createElement('div');
   messageDiv.className = `message message-${type}`;
 
-  const avatar = type === 'agent' ? '🤖' : '👤';
+  const avatar = type === 'agent' ? AGENT_ICON : USER_ICON;
 
   messageDiv.innerHTML = `
-    <div class="message-avatar">${avatar}</div>
+    <div class="message-avatar ${type === 'agent' ? 'agent-avatar' : 'user-avatar'}">
+      ${avatar}
+    </div>
     <div class="message-content">
       <div class="message-bubble">
         ${typeof content === 'string' ? `<p>${escapeHtml(content)}</p>` : content}
@@ -248,10 +335,12 @@ function addMessageWithHtml(htmlContent, type) {
   const messageDiv = document.createElement('div');
   messageDiv.className = `message message-${type}`;
 
-  const avatar = type === 'agent' ? '🤖' : '👤';
+  const avatar = type === 'agent' ? AGENT_ICON : USER_ICON;
 
   messageDiv.innerHTML = `
-    <div class="message-avatar">${avatar}</div>
+    <div class="message-avatar ${type === 'agent' ? 'agent-avatar' : 'user-avatar'}">
+      ${avatar}
+    </div>
     <div class="message-content">
       <div class="message-bubble">
         ${htmlContent}
@@ -407,7 +496,9 @@ function showTypingIndicator() {
   indicator.className = 'message message-agent';
   indicator.id = 'typingIndicator';
   indicator.innerHTML = `
-    <div class="message-avatar">🤖</div>
+    <div class="message-avatar agent-avatar">
+      ${AGENT_ICON}
+    </div>
     <div class="message-content">
       <div class="typing-indicator">
         <span></span>

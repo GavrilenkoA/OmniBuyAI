@@ -29,3 +29,9 @@ venv/
 # Temporary files
 *.tmp
 *.bak
+
+# Icons build files
+chrome-extension/icons/package.json
+chrome-extension/icons/package-lock.json
+chrome-extension/icons/generate.js
+chrome-extension/icons/node_modules/

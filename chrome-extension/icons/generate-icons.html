@@ -1,58 +1,111 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Icon Generator</title>
+  <title>Icon Generator - Perekrestok AI Assistant</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    canvas { border: 1px solid #ccc; margin: 10px 0; }
+    a { display: block; margin: 5px 0; color: #00b059; }
+  </style>
 </head>
 <body>
-  <canvas id="canvas" width="128" height="128"></canvas>
+  <h1>Perekrestok AI Assistant - Icon Generator</h1>
+  <p>Click each link to download the icon:</p>
+  
+  <h3>128x128 (SVG source)</h3>
+  <canvas id="canvas128" width="128" height="128"></canvas>
+  
+  <h3>48x48</h3>
+  <canvas id="canvas48" width="48" height="48"></canvas>
+  
+  <h3>16x16</h3>
+  <canvas id="canvas16" width="16" height="16"></canvas>
+  
   <script>
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-
-    // Gradient background
-    const gradient = ctx.createLinearGradient(0, 0, 128, 128);
-    gradient.addColorStop(0, '#00a651');
-    gradient.addColorStop(1, '#008a43');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 128, 128);
-
-    // Shopping cart
-    ctx.strokeStyle = 'white';
-    ctx.lineWidth = 6;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+    function drawIcon(ctx, size) {
+      const scale = size / 128;
+      
+      // Gradient background
+      const gradient = ctx.createLinearGradient(0, 0, size, size);
+      gradient.addColorStop(0, '#00b059');
+      gradient.addColorStop(1, '#008a43');
+      ctx.fillStyle = gradient;
+      
+      // Rounded rectangle background
+      const radius = 28 * scale;
+      ctx.beginPath();
+      ctx.roundRect(0, 0, size, size, radius);
+      ctx.fill();
+      
+      // Shopping basket handle (arc)
+      ctx.strokeStyle = 'white';
+      ctx.lineWidth = 7 * scale;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(64 * scale, 52 * scale, 20 * scale, Math.PI, 0, false);
+      ctx.stroke();
+      
+      // Shopping basket body
+      ctx.lineWidth = 7 * scale;
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(32 * scale, 50 * scale);
+      ctx.lineTo(40 * scale, 92 * scale);
+      ctx.quadraticCurveTo(42 * scale, 102 * scale, 54 * scale, 102 * scale);
+      ctx.lineTo(74 * scale, 102 * scale);
+      ctx.quadraticCurveTo(86 * scale, 102 * scale, 88 * scale, 92 * scale);
+      ctx.lineTo(96 * scale, 50 * scale);
+      ctx.stroke();
+      
+      // Basket weave lines (only for larger sizes)
+      if (size >= 48) {
+        ctx.lineWidth = 3 * scale;
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath();
+        ctx.moveTo(44 * scale, 62 * scale);
+        ctx.lineTo(84 * scale, 62 * scale);
+        ctx.moveTo(46 * scale, 74 * scale);
+        ctx.lineTo(82 * scale, 74 * scale);
+        if (size >= 128) {
+          ctx.moveTo(48 * scale, 86 * scale);
+          ctx.lineTo(80 * scale, 86 * scale);
+        }
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+      
+      // AI sparkle/star (only for larger sizes)
+      if (size >= 48) {
+        ctx.fillStyle = 'white';
+        ctx.globalAlpha = 0.9;
+        const cx = 98 * scale, cy = 32 * scale, s = 4 * scale;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - s);
+        ctx.lineTo(cx + s * 0.5, cy - s * 0.3);
+        ctx.lineTo(cx + s, cy);
+        ctx.lineTo(cx + s * 0.5, cy + s * 0.3);
+        ctx.lineTo(cx, cy + s);
+        ctx.lineTo(cx - s * 0.5, cy + s * 0.3);
+        ctx.lineTo(cx - s, cy);
+        ctx.lineTo(cx - s * 0.5, cy - s * 0.3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    }
     
-    ctx.beginPath();
-    ctx.moveTo(30, 50);
-    ctx.lineTo(40, 50);
-    ctx.lineTo(45, 80);
-    ctx.lineTo(95, 80);
-    ctx.lineTo(100, 50);
-    ctx.lineTo(50, 50);
-    ctx.stroke();
-
-    // Wheels
-    ctx.fillStyle = 'white';
-    ctx.beginPath();
-    ctx.arc(50, 90, 6, 0, Math.PI * 2);
-    ctx.arc(85, 90, 6, 0, Math.PI * 2);
-    ctx.fill();
-
-    // AI sparkles
-    ctx.beginPath();
-    ctx.arc(80, 35, 4, 0, Math.PI * 2);
-    ctx.arc(90, 42, 3, 0, Math.PI * 2);
-    ctx.arc(72, 40, 3, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Download links
-    const sizes = [16, 48, 128];
+    // Draw all sizes
+    const sizes = [128, 48, 16];
     sizes.forEach(size => {
+      const canvas = document.getElementById(`canvas${size}`);
+      const ctx = canvas.getContext('2d');
+      drawIcon(ctx, size);
+      
+      // Create download link
       const link = document.createElement('a');
       link.download = `icon${size}.png`;
       link.href = canvas.toDataURL('image/png');
-      link.textContent = `Download icon${size}.png`;
-      link.style.display = 'block';
+      link.textContent = `⬇️ Download icon${size}.png`;
       document.body.appendChild(link);
     });
   </script>

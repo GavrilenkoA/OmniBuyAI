@@ -77,11 +77,47 @@ async function parseProductsFromPage() {
   productCache = [];
 
   try {
-    // Wait for page to load
-    await waitForElement('.catalog-product', 5000);
-
-    const productElements = document.querySelectorAll('.catalog-product');
+    // Check if we're on a catalog/product page
+    const isCatalogPage = window.location.pathname.includes('/catalog') || 
+                          window.location.pathname.includes('/product') ||
+                          window.location.pathname.includes('/search') ||
+                          window.location.pathname.includes('/dlyaya-kuchni');
     
+    if (!isCatalogPage) {
+      console.log('[Perekrestok AI] Not a catalog page, skipping product parse');
+      return [];
+    }
+
+    // Wait for page to load with multiple possible selectors
+    const selectors = [
+      '.catalog-product',
+      '[class*="product-card"]',
+      '[class*="product-item"]',
+      '[data-product-id]',
+      '.product-grid-item'
+    ];
+    
+    let productElements = [];
+    
+    for (const selector of selectors) {
+      try {
+        await waitForElement(selector, 3000);
+        productElements = document.querySelectorAll(selector);
+        if (productElements.length > 0) {
+          console.log(`[Perekrestok AI] Found products using selector: ${selector}`);
+          break;
+        }
+      } catch (e) {
+        // Try next selector
+        continue;
+      }
+    }
+
+    if (productElements.length === 0) {
+      console.warn('[Perekrestok AI] No products found on page');
+      return [];
+    }
+
     productElements.forEach((element, index) => {
       try {
         const product = extractProductFromElement(element, index);
@@ -96,7 +132,7 @@ async function parseProductsFromPage() {
     console.log(`[Perekrestok AI] Parsed ${productCache.length} products`);
     return productCache;
   } catch (error) {
-    console.error('[Perekrestok AI] Error parsing products:', error);
+    console.warn('[Perekrestok AI] Error parsing products:', error.message);
     return [];
   } finally {
     isParsing = false;

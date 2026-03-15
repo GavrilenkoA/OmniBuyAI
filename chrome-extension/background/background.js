@@ -149,10 +149,10 @@ function generateFallbackResponse(message) {
     };
   }
 
-  // Default response
+  // Default response - no auto-reply
   return {
     type: 'text',
-    text: 'Я понимаю ваш запрос. Для поиска товаров пожалуйста перейдите на страницу каталога Перекрёстка.'
+    text: ''
   };
 }
 

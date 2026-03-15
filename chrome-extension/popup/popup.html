@@ -11,8 +11,27 @@
     <!-- Header -->
     <header class="chat-header">
       <div class="header-content">
-        <h1 class="header-title">🛒 Помощник Перекрёсток</h1>
-        <span class="status-indicator" title="Online"></span>
+        <div class="header-title">
+          <svg class="perekrestok-logo" width="24" height="24" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Top petal (light green) -->
+            <ellipse cx="50" cy="28" rx="18" ry="22" fill="#7CB342" transform="rotate(0 50 28)"/>
+            <!-- Right petal (medium green) -->
+            <ellipse cx="72" cy="50" rx="18" ry="22" fill="#558B2F" transform="rotate(90 72 50)"/>
+            <!-- Bottom petal (dark green) -->
+            <ellipse cx="50" cy="72" rx="18" ry="22" fill="#33691E" transform="rotate(0 50 72)"/>
+            <!-- Left petal (lightest green) -->
+            <ellipse cx="28" cy="50" rx="18" ry="22" fill="#9CCC65" transform="rotate(90 28 50)"/>
+          </svg>
+          <span>Помощник Перекрёсток</span>
+        </div>
+        <div class="header-actions">
+          <span class="status-indicator" title="Online"></span>
+          <button id="closeButton" class="close-button" title="Закрыть">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
       </div>
     </header>
 
@@ -20,7 +39,13 @@
     <div class="messages-container" id="messagesContainer">
       <!-- Welcome Message -->
       <div class="message message-agent">
-        <div class="message-avatar">🤖</div>
+        <div class="message-avatar agent-avatar">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/>
+            <path d="M6 20C6 17 8 15 12 15C16 15 18 17 18 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M9 8L10 6M15 8L14 6M12 4V2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
         <div class="message-content">
           <div class="message-bubble">
             <p>Привет! Я ваш AI-помощник для покупок в Перекрёстке.</p>
@@ -66,6 +91,7 @@
         <button class="quick-action-btn" data-query="Собери мне завтрак">🌅 Завтрак</button>
         <button class="quick-action-btn" data-query="Собери мне обед">🍲 Обед</button>
         <button class="quick-action-btn" data-query="Собери мне ужин">🌙 Ужин</button>
+        <button class="quick-action-btn" data-query="Собери мне перекус">🍿 Перекус</button>
       </div>
     </div>
   </div>
