@@ -169,4 +169,6 @@ result = agent.execute(analysis["params"])
 }
 ```
 
+### Запуск сервера - uv run python -m uvicorn basket_service:app --reload --port 8000
+
 ## Видео с демонтарцией - https://drive.google.com/file/d/1es38CG7SdeCI-jxmBSbAHdNlZiZuJEzs/view?usp=sharing
