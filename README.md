@@ -168,3 +168,5 @@ result = agent.execute(analysis["params"])
     "params": {"days": 3, "people": 2, "preferences": "balanced"}
 }
 ```
+
+## Видео с демонтарцией - https://drive.google.com/file/d/1es38CG7SdeCI-jxmBSbAHdNlZiZuJEzs/view?usp=sharing
