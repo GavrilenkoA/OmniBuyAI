@@ -2,11 +2,11 @@ import json
 
 from openai import OpenAI
 
-from .config import OPENAI_API_KEY, OPENAI_MODEL
+from .config import LLM_API_KEY, LLM_MODEL, LLM_BASE_URL
 from .models import Product
 from .retrieval import retrieve_products
 
-_client = OpenAI(api_key=OPENAI_API_KEY)
+_client = OpenAI(api_key=LLM_API_KEY, base_url=LLM_BASE_URL)
 
 CANDIDATES_PER_PRODUCT = 3
 # Max BM25 candidates to include in LLM prompt
@@ -34,7 +34,7 @@ def analyze_request(user_query: str, conversation_history: list[dict] | None = N
     messages.append({"role": "user", "content": user_query})
 
     response = _client.chat.completions.create(
-        model=OPENAI_MODEL,
+        model=LLM_MODEL,
         response_format={"type": "json_object"},
         messages=messages,
     )
@@ -56,7 +56,7 @@ def generate_meal_plan(params: dict) -> list[dict]:
         user_msg += f" Бюджет {budget}₽."
 
     response = _client.chat.completions.create(
-        model=OPENAI_MODEL,
+        model=LLM_MODEL,
         response_format={"type": "json_object"},
         messages=[
             {
@@ -103,7 +103,7 @@ def select_product_candidates(
     catalog = _compact_catalog(candidates)
 
     response = _client.chat.completions.create(
-        model=OPENAI_MODEL,
+        model=LLM_MODEL,
         response_format={"type": "json_object"},
         messages=[
             {
@@ -141,7 +141,7 @@ def select_products_for_day(
     catalog = _compact_catalog(candidates)
 
     response = _client.chat.completions.create(
-        model=OPENAI_MODEL,
+        model=LLM_MODEL,
         response_format={"type": "json_object"},
         messages=[
             {

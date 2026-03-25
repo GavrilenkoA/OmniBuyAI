@@ -126,15 +126,40 @@ chrome-extension/
 
 ### Backend API
 
-Отредактируйте `services/api.js` для настройки URL бэкенда:
+**1. Отредактируйте `config.js` для настройки URL бэкенда:**
 
 ```javascript
+// chrome-extension/config.js
+
 export const API_CONFIG = {
-  BASE_URL: 'http://localhost:8000/api/v1', // Измените для production
-  TIMEOUT: 30000,
-  RETRIES: 3
+  // 🔧 LOKALNO (разработка)
+  BASE_URL: 'http://localhost:8000/api/v1',
+  
+  // 🔧 PRODUCTION (замените your-domain.com)
+  // BASE_URL: 'https://your-domain.com/api/v1',
+  
+  TIMEOUT: 30000,  // 30 секунд
+  RETRIES: 3       // 3 попытки
 };
 ```
+
+**2. Обновите `manifest.json` для production:**
+
+```json
+{
+  "host_permissions": [
+    "https://perekrestok.ru/*",
+    "https://www.perekrestok.ru/*",
+    "https://your-domain.com/*"  // Production backend
+  ]
+}
+```
+
+**3. Перезагрузите расширение:**
+- Откройте `chrome://extensions/`
+- Нажмите иконку обновления 🔄 на карточке расширения
+
+**📖 Полная инструкция:** [../INSTRUCTION.md](../INSTRUCTION.md)
 
 ## Разработка
 

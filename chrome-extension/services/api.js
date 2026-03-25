@@ -3,23 +3,8 @@
  * Handles HTTP requests to the FastAPI backend
  */
 
-// API Configuration
-export const API_CONFIG = {
-  BASE_URL: 'http://localhost:8000/api/v1', // Change to production URL when deployed
-  TIMEOUT: 30000,
-  RETRIES: 3
-};
-
-// API Endpoints
-export const API_ENDPOINTS = {
-  CHAT: '/chat',
-  SEARCH: '/search',
-  PRODUCTS: '/products',
-  CART_ADD: '/cart/add',
-  CART_REMOVE: '/cart/remove',
-  CART_GET: '/cart',
-  HEALTH: '/health'
-};
+// Import configuration from central config file
+import { API_CONFIG, API_ENDPOINTS } from '../config.js';
 
 /**
  * API Client Class

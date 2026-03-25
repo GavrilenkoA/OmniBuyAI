@@ -5,6 +5,13 @@
 
 import { apiClient, API_ENDPOINTS } from '../services/api.js';
 
+// ═══════════════════════════════════════════════════════════
+// CONFIGURATION
+// ═══════════════════════════════════════════════════════════
+// Backend URL is configured in ../config.js
+// Edit that file to change BASE_URL for production
+// ═══════════════════════════════════════════════════════════
+
 // State
 let activeTabId = null;
 let isBackendConnected = false;

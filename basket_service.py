@@ -171,7 +171,9 @@ async def add_to_basket(
             except Exception as e:
                 results.append(ItemResult(
                     internal_id=internal_id,
-                    iteration=i + 1,
+                    # Use the precomputed iteration value to keep error responses consistent
+                    # with the success cases (i + 2 when the item was already added).
+                    iteration=iteration,
                     status="error",
                     message=str(e),
                 ))

@@ -4,7 +4,75 @@ AI-powered grocery planning agent that builds a shopping cart from real Perekres
 
 HSE Hackathon Project.
 
-## How it works
+## 📖 Quick Links
+
+- **[📘 Полная инструкция по развёртыванию (INSTRUCTION.md)](INSTRUCTION.md)**
+- [Настройка конфигурации](#-конфигурация)
+- [Быстрый старт](#-quick-start)
+- [Usage](#usage)
+
+---
+
+## ⚙️ Конфигурация
+
+### Backend (.env)
+
+```bash
+# Скопируйте шаблон
+cp .env.example .env
+
+# Отредактируйте значения
+nano .env
+```
+
+**Обязательные поля:**
+
+```env
+# 1. LLM API (GROQ) - получите на https://console.groq.com/keys
+GROQ_API_KEY=gsk_your_api_key_here
+LLM_MODEL=llama-3.3-70b-versatile
+LLM_BASE_URL=https://api.groq.com/openai/v1
+
+# 2. Backend Server
+BACKEND_HOST=127.0.0.1
+BACKEND_PORT=8000
+BACKEND_URL=http://localhost:8000
+
+# 3. Chrome Extension
+EXTENSION_BACKEND_URL=http://localhost:8000/api/v1
+EXTENSION_API_TIMEOUT=30000
+EXTENSION_API_RETRIES=3
+
+# 4. Остальные настройки (можно не менять)
+PEREKRESTOK_API_BASE_URL=https://www.perekrestok.ru/api/customer/1.4.1.0
+PEREKRESTOK_REQUEST_DELAY=0.3
+DATA_DIR=data
+LOG_LEVEL=INFO
+CORS_ALLOW_ORIGINS=*
+```
+
+### Chrome Extension
+
+Отредактируйте `chrome-extension/config.js`:
+
+```javascript
+export const API_CONFIG = {
+  // Локально:
+  BASE_URL: 'http://localhost:8000/api/v1',
+  
+  // Production:
+  // BASE_URL: 'https://your-domain.com/api/v1',
+  
+  TIMEOUT: 30000,
+  RETRIES: 3
+};
+```
+
+**📖 Полная документация:** [INSTRUCTION.md](INSTRUCTION.md)
+
+---
+
+## 🚀 Quick Start
 
 ```
 User Query (natural language)
@@ -101,20 +169,18 @@ uv sync
 ### 3. Configure API key
 
 ```bash
+# Copy configuration template
 cp .env.example .env
-# Edit .env and set your OpenAI API key:
-#   OPENAI_API_KEY=sk-proj-...
+
+# Edit .env and set your GROQ API key
+nano .env
+
+# Required variables:
+#   GROQ_API_KEY=gsk_your_api_key_here
+#   LLM_MODEL=llama-3.3-70b-versatile
 ```
 
-### `.env` file
-
-```env
-OPENAI_API_KEY=sk-proj-...
-
-# --- Models ---
-OPENAI_MODEL=gpt-5-nano
-EMBEDDING_MODEL=text-embedding-3-small
-```
+**📖 Full configuration guide:** [INSTRUCTION.md](INSTRUCTION.md)
 
 ## Usage
 
@@ -137,11 +203,29 @@ If the query is too vague, the agent will ask a clarifying question before proce
 
 ### FastAPI service (with availability check + basket)
 
+**⚠️ Важно: Для работы с Chrome Extension используйте api_service.py!**
+
+**Вариант 1: api_service.py** (рекомендуется, все endpoints для extension):
+
+```bash
+uv run uvicorn api_service:app --reload --port 8000
+```
+
+Доступные endpoints:
+- `POST /api/v1/chat` — Отправить сообщение AI
+- `POST /api/v1/search` — Поиск товаров
+- `GET /api/v1/products` — Получить все товары
+- `POST /api/v1/cart/add` — Добавить товар в корзину
+- `GET /api/v1/health` — Проверка доступности
+- `POST /api/v1/basket/build` — Построить корзину по промту (полный цикл)
+
+**Вариант 2: basket_service.py** (только /basket/build):
+
 ```bash
 uv run uvicorn basket_service:app --reload --port 8000
 ```
 
-Then send a POST request:
+Тогда отправьте POST запрос:
 
 ```bash
 curl -X POST http://localhost:8000/basket/build \
